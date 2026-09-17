@@ -1,0 +1,61 @@
+@page
+@model GMS.Web.Pages.Users.IndexModel
+@{ ViewData["Title"] = "Users & Roles"; Layout = "_Layout"; }
+@{ var canManage = Me.HasPermission(PermissionCodes.Users.Manage); }
+
+<div class="page-head">
+    <h1>Users &amp; Roles</h1>
+    @if (canManage && Model.Tab != "roles")
+    {
+        <a asp-page="Edit" class="btn btn-primary btn-sm">New user</a>
+    }
+</div>
+
+<ul class="nav nav-pills mb-3">
+    <li class="nav-item"><a class="nav-link @(Model.Tab != "roles" ? "active" : "")" asp-route-tab="users">Users</a></li>
+    <li class="nav-item"><a class="nav-link @(Model.Tab == "roles" ? "active" : "")" asp-route-tab="roles">Roles</a></li>
+</ul>
+
+@if (Model.Tab == "roles")
+{
+    <div class="card"><div class="table-responsive"><table class="table table-sm mb-0">
+        <thead><tr><th>Role</th><th>Description</th><th class="text-end">Permissions</th><th class="text-end">Users</th><th>System</th></tr></thead>
+        <tbody>
+        @foreach (var r in Model.Roles ?? Array.Empty<RoleDetail>())
+        {
+            <tr><td>@r.Role.Name</td><td class="muted">@r.Role.Description</td>
+                <td class="text-end">@r.PermissionCodes.Count</td><td class="text-end">@r.UserCount</td>
+                <td>@(r.Role.IsSystem ? "Yes" : "No")</td></tr>
+        }
+        </tbody>
+    </table></div></div>
+}
+else if (Model.Users is { } u)
+{
+    <div class="card"><div class="table-responsive"><table class="table table-sm table-hover mb-0 align-middle">
+        <thead><tr><th>Username</th><th>Full name</th><th>Email</th><th>Role</th><th>Active</th><th>Last sign-in (UTC)</th><th></th></tr></thead>
+        <tbody>
+        @foreach (var user in u.Items)
+        {
+            <tr>
+                <td>@user.UserName</td>
+                <td>@user.FullName</td>
+                <td>@user.Email</td>
+                <td>@Model.RoleNames.GetValueOrDefault(user.RoleId, "—")</td>
+                <td>@(user.IsActive ? "Yes" : "No")</td>
+                <td class="muted">@(user.LastLoginUtc?.ToString("yyyy-MM-dd HH:mm") ?? "—")</td>
+                <td class="text-end text-nowrap">
+                    @if (canManage)
+                    {
+                        <a asp-page="Edit" asp-route-id="@user.Id" class="btn btn-sm btn-link py-0">Edit</a>
+                        <a asp-page="ResetPassword" asp-route-id="@user.Id" class="btn btn-sm btn-link py-0">Reset password</a>
+                        <form method="post" asp-page-handler="Toggle" asp-route-id="@user.Id" asp-route-active="@user.IsActive" class="d-inline">
+                            <button class="btn btn-sm btn-link py-0">@(user.IsActive ? "Deactivate" : "Activate")</button>
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+        </tbody>
+    </table></div></div>
+}

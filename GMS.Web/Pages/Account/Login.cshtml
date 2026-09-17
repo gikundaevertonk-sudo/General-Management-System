@@ -1,0 +1,39 @@
+@page
+@model GMS.Web.Pages.Account.LoginModel
+@{
+    ViewData["Title"] = "Sign in";
+    Layout = "_Layout";
+}
+
+<div class="row justify-content-center">
+    <div class="col-12 col-sm-9 col-md-6 col-lg-4">
+        <div class="card mt-4 mt-md-5">
+            <div class="card-body p-4">
+                <h1 class="h4 mb-1">Sign in</h1>
+                <p class="muted mb-4">General Management System</p>
+
+                @if (Model.Error is not null)
+                {
+                    <div class="alert alert-danger py-2">@Model.Error</div>
+                }
+
+                <form method="post">
+                    <input type="hidden" asp-for="ReturnUrl" />
+                    <div class="mb-3">
+                        <label asp-for="Input.UserName" class="form-label">Username</label>
+                        <input asp-for="Input.UserName" class="form-control" autofocus autocomplete="username" />
+                        <span asp-validation-for="Input.UserName" class="text-danger small"></span>
+                    </div>
+                    <div class="mb-4">
+                        <label asp-for="Input.Password" class="form-label">Password</label>
+                        <input asp-for="Input.Password" class="form-control" autocomplete="current-password" />
+                        <span asp-validation-for="Input.Password" class="text-danger small"></span>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Sign in</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

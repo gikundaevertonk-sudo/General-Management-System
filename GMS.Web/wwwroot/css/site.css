@@ -1,0 +1,19 @@
+html { font-size: 14px; }
+body { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; }
+
+.card { border: 1px solid #e5e7eb; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+.stat-card .stat-value { font-size: 1.6rem; font-weight: 600; }
+.stat-card .stat-label { color: #6b7280; font-size: .85rem; }
+
+.table > :not(caption) > * > * { padding: .5rem .6rem; }
+.table thead th { background: #f9fafb; font-weight: 600; white-space: nowrap; }
+
+.navbar .nav-link { padding-left: .75rem; padding-right: .75rem; }
+.navbar-dark .btn-link.nav-link { color: rgba(255,255,255,.75); text-decoration: none; }
+.navbar-dark .btn-link.nav-link:hover { color: #fff; }
+
+.page-head { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.page-head h1 { font-size: 1.4rem; margin: 0; }
+
+.low-stock { color: #b45309; font-weight: 600; }
+.muted { color: #6b7280; }

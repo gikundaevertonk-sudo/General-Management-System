@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>GMS.Web</RootNamespace>
+    <UserSecretsId>04c4188b-7ea6-48e9-a4b7-0a65afd69862</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GMS.Core\GMS.Core.vbproj" />
+  </ItemGroup>
+
+</Project>

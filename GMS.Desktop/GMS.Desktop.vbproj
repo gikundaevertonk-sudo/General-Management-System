@@ -1,0 +1,60 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RootNamespace>GMS.Desktop</RootNamespace>
+    <AssemblyName>GMS.Desktop</AssemblyName>
+    <StartupObject>GMS.Desktop.Program</StartupObject>
+    <UseWindowsForms>true</UseWindowsForms>
+    <MyType>Empty</MyType>
+    <OptionStrict>On</OptionStrict>
+    <OptionExplicit>On</OptionExplicit>
+    <OptionInfer>On</OptionInfer>
+    <LangVersion>latest</LangVersion>
+    <NoWarn>BC42353;WFO1000</NoWarn>
+    <UserSecretsId>89471431-978a-4a82-9e1d-bac6bbddcd0e</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Import Include="System.Data" />
+    <Import Include="System.Drawing" />
+    <Import Include="System.Windows.Forms" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.4" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.4" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="10.0.4" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GMS.Core\GMS.Core.vbproj" />
+  </ItemGroup>
+
+  <!-- Dialog forms that open in the Windows Forms designer (code-behind + *.Designer.vb). -->
+  <ItemGroup>
+    <Compile Update="Forms\LoginForm.vb"><SubType>Form</SubType></Compile>
+    <Compile Update="Forms\LoginForm.Designer.vb"><DependentUpon>LoginForm.vb</DependentUpon></Compile>
+    <Compile Update="Forms\ChangePasswordForm.vb"><SubType>Form</SubType></Compile>
+    <Compile Update="Forms\ChangePasswordForm.Designer.vb"><DependentUpon>ChangePasswordForm.vb</DependentUpon></Compile>
+    <Compile Update="Forms\ProductEditForm.vb"><SubType>Form</SubType></Compile>
+    <Compile Update="Forms\ProductEditForm.Designer.vb"><DependentUpon>ProductEditForm.vb</DependentUpon></Compile>
+    <Compile Update="Forms\UserEditForm.vb"><SubType>Form</SubType></Compile>
+    <Compile Update="Forms\UserEditForm.Designer.vb"><DependentUpon>UserEditForm.vb</DependentUpon></Compile>
+    <Compile Update="Forms\SetPasswordForm.vb"><SubType>Form</SubType></Compile>
+    <Compile Update="Forms\SetPasswordForm.Designer.vb"><DependentUpon>SetPasswordForm.vb</DependentUpon></Compile>
+    <Compile Update="Forms\StockAdjustForm.vb"><SubType>Form</SubType></Compile>
+    <Compile Update="Forms\StockAdjustForm.Designer.vb"><DependentUpon>StockAdjustForm.vb</DependentUpon></Compile>
+    <Compile Update="Forms\TransactionEditForm.vb"><SubType>Form</SubType></Compile>
+    <Compile Update="Forms\TransactionEditForm.Designer.vb"><DependentUpon>TransactionEditForm.vb</DependentUpon></Compile>
+    <Compile Update="Forms\CustomerEditForm.vb"><SubType>Form</SubType></Compile>
+    <Compile Update="Forms\CustomerEditForm.Designer.vb"><DependentUpon>CustomerEditForm.vb</DependentUpon></Compile>
+    <Compile Update="Forms\SupplierEditForm.vb"><SubType>Form</SubType></Compile>
+    <Compile Update="Forms\SupplierEditForm.Designer.vb"><DependentUpon>SupplierEditForm.vb</DependentUpon></Compile>
+    <Compile Update="Forms\CategoryEditForm.vb"><SubType>Form</SubType></Compile>
+    <Compile Update="Forms\CategoryEditForm.Designer.vb"><DependentUpon>CategoryEditForm.vb</DependentUpon></Compile>
+  </ItemGroup>
+
+</Project>

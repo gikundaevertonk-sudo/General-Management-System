@@ -1,0 +1,75 @@
+@page
+@model GMS.Web.Pages.Reports.IndexModel
+@{ ViewData["Title"] = "Reports"; Layout = "_Layout"; }
+
+<div class="page-head">
+    <h1>Reports</h1>
+    <a class="btn btn-outline-secondary btn-sm"
+       asp-page-handler="Csv" asp-route-report="@Model.Report" asp-route-from="@Model.From?.ToString("yyyy-MM-dd")" asp-route-to="@Model.To?.ToString("yyyy-MM-dd")">Download CSV</a>
+</div>
+
+<form method="get" class="row g-2 mb-3 align-items-end">
+    <div class="col-auto">
+        <label class="form-label mb-0 small">Report</label>
+        <select name="report" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="sales" selected="@(Model.Report == "sales")">Sales summary</option>
+            <option value="valuation" selected="@(Model.Report == "valuation")">Inventory valuation</option>
+            <option value="lowstock" selected="@(Model.Report == "lowstock")">Low stock</option>
+        </select>
+    </div>
+    @if (Model.Report == "sales")
+    {
+        <div class="col-auto"><label class="form-label mb-0 small">From</label><input type="date" name="from" value="@Model.From?.ToString("yyyy-MM-dd")" class="form-control form-control-sm" /></div>
+        <div class="col-auto"><label class="form-label mb-0 small">To</label><input type="date" name="to" value="@Model.To?.ToString("yyyy-MM-dd")" class="form-control form-control-sm" /></div>
+        <div class="col-auto"><button class="btn btn-outline-secondary btn-sm">Run</button></div>
+    }
+</form>
+
+@if (Model.Error is not null) { <div class="alert alert-warning">@Model.Error</div> }
+
+@if (Model.Sales is { } s)
+{
+    <p class="muted">@s.Range.FromUtc.ToString("yyyy-MM-dd") → @s.Range.ToUtc.ToString("yyyy-MM-dd") · @s.TransactionCount sale(s) · Subtotal @s.Subtotal.ToString("N2") · Tax @s.Tax.ToString("N2") · <strong>Total @s.Total.ToString("N2")</strong></p>
+    <div class="card"><div class="table-responsive"><table class="table table-sm mb-0">
+        <thead><tr><th>SKU</th><th>Product</th><th class="text-end">Qty sold</th><th class="text-end">Revenue</th></tr></thead>
+        <tbody>
+        @foreach (var l in s.Lines)
+        {
+            <tr><td>@l.Sku</td><td>@l.ProductName</td><td class="text-end">@l.QuantitySold.ToString("N3")</td><td class="text-end">@l.Revenue.ToString("N2")</td></tr>
+        }
+        @if (s.Lines.Count == 0) { <tr><td colspan="4" class="muted">No sales in this period.</td></tr> }
+        </tbody>
+    </table></div></div>
+}
+else if (Model.Valuation is { } v)
+{
+    <p class="muted">@v.Count product(s) · Total value @v.Sum(r => r.ValueAtCost).ToString("N2")</p>
+    <div class="card"><div class="table-responsive"><table class="table table-sm mb-0">
+        <thead><tr><th>SKU</th><th>Product</th><th class="text-end">On hand</th><th class="text-end">Unit cost</th><th class="text-end">Value</th></tr></thead>
+        <tbody>
+        @foreach (var r in v)
+        {
+            <tr class="@(r.BelowReorderLevel ? "table-warning" : "")">
+                <td>@r.Sku</td><td>@r.ProductName</td>
+                <td class="text-end">@r.QuantityOnHand.ToString("N3")</td>
+                <td class="text-end">@r.UnitCost.ToString("N2")</td>
+                <td class="text-end">@r.ValueAtCost.ToString("N2")</td>
+            </tr>
+        }
+        </tbody>
+    </table></div></div>
+}
+else if (Model.LowStock is { } low)
+{
+    <p class="muted">@low.Count product(s) at or below reorder level</p>
+    <div class="card"><div class="table-responsive"><table class="table table-sm mb-0">
+        <thead><tr><th>SKU</th><th>Product</th><th class="text-end">On hand</th><th class="text-end">Reorder level</th></tr></thead>
+        <tbody>
+        @foreach (var p in low)
+        {
+            <tr><td>@p.Sku</td><td>@p.Name</td><td class="text-end low-stock">@p.QuantityOnHand.ToString("N3")</td><td class="text-end">@p.ReorderLevel.ToString("N3")</td></tr>
+        }
+        @if (low.Count == 0) { <tr><td colspan="4" class="muted">Nothing low right now.</td></tr> }
+        </tbody>
+    </table></div></div>
+}

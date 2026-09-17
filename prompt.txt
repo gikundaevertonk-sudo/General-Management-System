@@ -1,0 +1,78 @@
+PROJECT: General Management System (VB.NET desktop + web-accessible)
+
+OVERVIEW
+Build a general-purpose management system for handling records, users, 
+inventory/assets, transactions, and reports for [specify domain: e.g., a small 
+business / school / clinic / warehouse]. The system needs a native VB.NET desktop 
+interface AND a browser-accessible web interface, both sharing the same business 
+logic and database.
+
+SOLUTION STRUCTURE (Visual Studio)
+Create one Visual Studio Solution named "GeneralManagementSystem" containing three 
+projects:
+
+1. GMS.Core (Visual Basic, Class Library)
+   - Shared business logic, models, and data access
+   - All database/entity logic lives here so both frontends reuse it
+   - Add NuGet package: Microsoft.EntityFrameworkCore.SqlServer (or .Sqlite for a 
+     lightweight/offline option)
+
+2. GMS.Desktop (Visual Basic, Windows Forms App)
+   - Native Windows desktop client
+   - Add a Project Reference to GMS.Core
+
+3. GMS.Web (C#, ASP.NET Core Web App - Razor Pages or MVC)
+   - Note: ASP.NET Core project templates are C#-only in current Visual Studio — 
+     there is no VB.NET template for this anymore. Build this project in C# and 
+     have it consume GMS.Core (a mixed-language solution is fine; VB.NET and C# 
+     projects can reference each other within the same solution)
+   - Add a Project Reference to GMS.Core
+   - Deployable to IIS or a cloud host (Azure/AWS)
+   - Should be responsive (usable on desktop and mobile browsers)
+
+PROJECT CREATION STEPS
+- Create GMS.Core first via "Create a new project" with the language filter set 
+  to Visual Basic, template "Class Library" — this generates the .sln (solution) 
+  file
+- Create GMS.Desktop and GMS.Web afterward using File → Add → New Project 
+  (from inside the already-open solution), NOT the startup "Create a new project" 
+  screen — this ensures they join the existing solution instead of creating a 
+  separate one. If prompted with a Solution dropdown, choose "Add to solution", 
+  not "Create new solution"
+- Confirm success in Solution Explorer: all three projects should appear nested 
+  under the one solution node
+- Project files save to disk immediately on creation; use Ctrl+Shift+S ("Save All") 
+  after adding references or editing code
+
+CORE MODULES
+1. User & Role Management – add/edit/deactivate users, assign roles and permissions 
+   (Admin, Manager, Staff/User)
+2. Dashboard – summary cards/charts (totals, recent activity, alerts)
+3. Records/Entities Management – full CRUD for the main entity 
+   (e.g., customers, students, patients, inventory items — specify which)
+4. Transactions/Activity Log – record actions (sales, admissions, stock movements, etc.)
+5. Search & Filter – across all major modules, with pagination
+6. Reports – generate and export as PDF/Excel (daily, monthly, custom date range)
+7. Notifications/Alerts – low stock, overdue tasks, pending approvals (as applicable)
+8. Audit Trail – who changed what and when
+
+AUTHENTICATION
+Role-based login with hashed passwords; session/token-based auth for the web version.
+
+NON-FUNCTIONAL REQUIREMENTS
+- Consistent behavior/data between the desktop app and the web app (same GMS.Core 
+  logic and database)
+- Input validation on both client and server side
+- Secure against SQL injection; passwords never stored in plain text
+- Easy to extend with new modules later
+- Desktop app deployable as a standalone installer; web app deployable to IIS or cloud
+
+DELIVERABLES
+- Database schema (ERD + SQL scripts)
+- GMS.Core: models, services, data access (VB.NET)
+- GMS.Desktop: Windows Forms UI (VB.NET)
+- GMS.Web: ASP.NET Core UI (C#)
+- Seed data and a README covering setup/build/run instructions
+
+Please start by proposing the GMS.Core database schema and class structure before 
+generating any UI code.

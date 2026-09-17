@@ -1,0 +1,53 @@
+@page
+@model GMS.Web.Pages.Products.EditModel
+@{ ViewData["Title"] = Model.IsNew ? "New product" : "Edit product"; Layout = "_Layout"; }
+
+<div class="page-head"><h1>@ViewData["Title"]</h1><a asp-page="Index" class="btn btn-link btn-sm">Back to list</a></div>
+
+@if (Model.Error is not null) { <div class="alert alert-danger">@Model.Error</div> }
+
+<div class="card"><div class="card-body">
+<form method="post" class="row g-3" style="max-width:640px;">
+    <input type="hidden" asp-for="Id" />
+    <div class="col-md-6">
+        <label asp-for="Input.Sku" class="form-label">SKU</label>
+        <input asp-for="Input.Sku" class="form-control" />
+    </div>
+    <div class="col-md-6">
+        <label asp-for="Input.Name" class="form-label">Name</label>
+        <input asp-for="Input.Name" class="form-control" />
+    </div>
+    <div class="col-12">
+        <label asp-for="Input.Description" class="form-label">Description</label>
+        <input asp-for="Input.Description" class="form-control" />
+    </div>
+    <div class="col-md-6">
+        <label asp-for="Input.CategoryId" class="form-label">Category</label>
+        <select asp-for="Input.CategoryId" asp-items="Model.Categories" class="form-select"></select>
+    </div>
+    <div class="col-md-6">
+        <label asp-for="Input.UnitOfMeasure" class="form-label">Unit of measure</label>
+        <input asp-for="Input.UnitOfMeasure" class="form-control" />
+    </div>
+    <div class="col-md-4">
+        <label asp-for="Input.UnitPrice" class="form-label">Unit price</label>
+        <input asp-for="Input.UnitPrice" class="form-control" type="number" step="0.01" />
+    </div>
+    <div class="col-md-4">
+        <label asp-for="Input.CostPrice" class="form-label">Cost price</label>
+        <input asp-for="Input.CostPrice" class="form-control" type="number" step="0.01" />
+    </div>
+    <div class="col-md-4">
+        <label asp-for="Input.ReorderLevel" class="form-label">Reorder level</label>
+        <input asp-for="Input.ReorderLevel" class="form-control" type="number" step="0.001" />
+    </div>
+    <div class="col-12 form-check ms-2">
+        <input asp-for="Input.IsActive" class="form-check-input" />
+        <label asp-for="Input.IsActive" class="form-check-label">Active</label>
+    </div>
+    <div class="col-12">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <a asp-page="Index" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+</form>
+</div></div>

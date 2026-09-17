@@ -1,0 +1,71 @@
+@page
+@model GMS.Web.Pages.Inventory.IndexModel
+@{ ViewData["Title"] = "Inventory"; Layout = "_Layout"; }
+
+<div class="page-head"><h1>Inventory</h1></div>
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-12 col-md-5">
+        <select name="productId" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">Choose a product…</option>
+            @foreach (var o in Model.ProductOptions)
+            { <option value="@o.Value" selected="@(Model.ProductId?.ToString() == o.Value)">@o.Text</option> }
+        </select>
+    </div>
+    @if (Model.Selected is { } p)
+    {
+        <div class="col-auto d-flex align-items-center muted">
+            On hand: <strong class="ms-1">@p.QuantityOnHand.ToString("N3")</strong> <span class="ms-1">@p.UnitOfMeasure</span>
+        </div>
+    }
+</form>
+
+@if (Model.Selected is not null)
+{
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card"><div class="card-header fw-semibold">Stock ledger</div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead><tr><th>When (UTC)</th><th>Direction</th><th>Reason</th><th class="text-end">Qty</th><th class="text-end">Balance</th><th>Reference</th><th>Note</th></tr></thead>
+                    <tbody>
+                    @foreach (var m in Model.Ledger?.Items ?? Array.Empty<StockLedgerRow>())
+                    {
+                        <tr>
+                            <td class="muted">@m.MovedAtUtc.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td>@m.Direction</td>
+                            <td>@m.Reason</td>
+                            <td class="text-end">@m.Quantity.ToString("N3")</td>
+                            <td class="text-end">@m.QuantityAfter.ToString("N3")</td>
+                            <td>@m.TransactionNumber</td>
+                            <td>@m.Note</td>
+                        </tr>
+                    }
+                    @if ((Model.Ledger?.Items.Count ?? 0) == 0) { <tr><td colspan="7" class="muted">No movements yet.</td></tr> }
+                    </tbody>
+                </table>
+            </div></div>
+        </div>
+
+        @if (Me.HasPermission(PermissionCodes.Inventory.Adjust))
+        {
+            <div class="col-lg-4">
+                <div class="card"><div class="card-body">
+                    <h2 class="h6">Adjust stock</h2>
+                    <form method="post" asp-page-handler="Adjust" asp-route-productId="@Model.ProductId" class="row g-2">
+                        <div class="col-12">
+                            <label asp-for="Direction" class="form-label">Direction</label>
+                            <select asp-for="Direction" class="form-select form-select-sm">
+                                <option value="In">Increase (stock in)</option>
+                                <option value="Out">Decrease (stock out)</option>
+                            </select>
+                        </div>
+                        <div class="col-12"><label asp-for="Qty" class="form-label">Quantity</label><input asp-for="Qty" type="number" step="0.001" class="form-control form-control-sm" /></div>
+                        <div class="col-12"><label asp-for="Note" class="form-label">Reason / note</label><input asp-for="Note" class="form-control form-control-sm" /></div>
+                        <div class="col-12"><button class="btn btn-primary btn-sm">Apply</button></div>
+                    </form>
+                </div></div>
+            </div>
+        }
+    </div>
+}

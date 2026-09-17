@@ -1,0 +1,29 @@
+@page
+@model GMS.Web.Pages.Settings.IndexModel
+@{ ViewData["Title"] = "Settings"; Layout = "_Layout"; }
+
+<div class="page-head"><h1>Settings</h1></div>
+
+@if (Model.Error is not null) { <div class="alert alert-danger">@Model.Error</div> }
+
+<div class="card" style="max-width:560px;"><div class="card-body">
+<form method="post" class="row g-3">
+    <div class="col-12">
+        <label asp-for="CompanyName" class="form-label">Company name</label>
+        <input asp-for="CompanyName" class="form-control" />
+    </div>
+    <div class="col-md-6">
+        <label asp-for="CurrencyCode" class="form-label">Currency code</label>
+        <input asp-for="CurrencyCode" class="form-control" placeholder="USD" />
+    </div>
+    <div class="col-md-6">
+        <label asp-for="DefaultTaxRatePercent" class="form-label">Default tax rate (%)</label>
+        <input asp-for="DefaultTaxRatePercent" type="number" step="0.01" class="form-control" />
+    </div>
+    <div class="col-12 form-check ms-2">
+        <input asp-for="LowStockScanEnabled" class="form-check-input" />
+        <label asp-for="LowStockScanEnabled" class="form-check-label">Raise low-stock alerts automatically</label>
+    </div>
+    <div class="col-12"><button class="btn btn-primary">Save</button></div>
+</form>
+</div></div>

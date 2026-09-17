@@ -1,0 +1,23 @@
+@page
+@model GMS.Web.Pages.Categories.EditModel
+@{ ViewData["Title"] = Model.IsNew ? "New category" : "Edit category"; Layout = "_Layout"; }
+
+<div class="page-head"><h1>@ViewData["Title"]</h1><a asp-page="Index" class="btn btn-link btn-sm">Back to list</a></div>
+
+@if (Model.Error is not null) { <div class="alert alert-danger">@Model.Error</div> }
+
+<div class="card" style="max-width:560px;"><div class="card-body">
+<form method="post" class="row g-3">
+    <input type="hidden" asp-for="Id" />
+    <div class="col-12"><label asp-for="Name" class="form-label">Name</label><input asp-for="Name" class="form-control" /></div>
+    <div class="col-12"><label asp-for="Description" class="form-label">Description</label><input asp-for="Description" class="form-control" /></div>
+    <div class="col-12">
+        <label asp-for="ParentCategoryId" class="form-label">Parent category</label>
+        <select asp-for="ParentCategoryId" asp-items="Model.ParentOptions" class="form-select"></select>
+    </div>
+    <div class="col-12">
+        <button class="btn btn-primary">Save</button>
+        <a asp-page="Index" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+</form>
+</div></div>

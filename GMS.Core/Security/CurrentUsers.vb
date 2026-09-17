@@ -1,0 +1,70 @@
+Imports GMS.Core.Abstractions
+
+Namespace Security
+
+    ''' <summary>
+    ''' A non-interactive principal that passes every permission check. For seeding,
+    ''' background jobs and tests only — never register this in a front end.
+    ''' </summary>
+    Public NotInheritable Class SystemCurrentUser
+        Implements ICurrentUser
+
+        Public ReadOnly Property UserId As Integer? Implements ICurrentUser.UserId
+            Get
+                Return Nothing
+            End Get
+        End Property
+
+        Public ReadOnly Property UserName As String Implements ICurrentUser.UserName
+            Get
+                Return "system"
+            End Get
+        End Property
+
+        Public ReadOnly Property IsAuthenticated As Boolean Implements ICurrentUser.IsAuthenticated
+            Get
+                Return True
+            End Get
+        End Property
+
+        Public Function HasPermission(permissionCode As String) As Boolean Implements ICurrentUser.HasPermission
+            Return True
+        End Function
+
+        Public Function IsInRole(roleName As String) As Boolean Implements ICurrentUser.IsInRole
+            Return True
+        End Function
+    End Class
+
+    ''' <summary>The principal used before anyone has signed in. Grants nothing.</summary>
+    Public NotInheritable Class AnonymousCurrentUser
+        Implements ICurrentUser
+
+        Public ReadOnly Property UserId As Integer? Implements ICurrentUser.UserId
+            Get
+                Return Nothing
+            End Get
+        End Property
+
+        Public ReadOnly Property UserName As String Implements ICurrentUser.UserName
+            Get
+                Return String.Empty
+            End Get
+        End Property
+
+        Public ReadOnly Property IsAuthenticated As Boolean Implements ICurrentUser.IsAuthenticated
+            Get
+                Return False
+            End Get
+        End Property
+
+        Public Function HasPermission(permissionCode As String) As Boolean Implements ICurrentUser.HasPermission
+            Return False
+        End Function
+
+        Public Function IsInRole(roleName As String) As Boolean Implements ICurrentUser.IsInRole
+            Return False
+        End Function
+    End Class
+
+End Namespace

@@ -1,0 +1,38 @@
+@page
+@model GMS.Web.Pages.Categories.IndexModel
+@{ ViewData["Title"] = "Categories"; Layout = "_Layout"; }
+@{ var canEdit = Me.HasPermission(PermissionCodes.Categories.Edit); }
+
+<div class="page-head">
+    <h1>Categories</h1>
+    @if (canEdit) { <a asp-page="Edit" class="btn btn-primary btn-sm">New category</a> }
+</div>
+
+@if (Model.Error is not null) { <div class="alert alert-warning">@Model.Error</div> }
+
+<div class="card"><div class="table-responsive">
+    <table class="table table-sm table-hover mb-0 align-middle">
+        <thead><tr><th>Name</th><th>Description</th><th>Parent</th><th></th></tr></thead>
+        <tbody>
+        @foreach (var c in Model.Categories)
+        {
+            <tr>
+                <td>@c.Name</td>
+                <td class="muted">@c.Description</td>
+                <td>@(c.ParentCategoryId is int pid && Model.ParentNames.TryGetValue(pid, out var n) ? n : "—")</td>
+                <td class="text-end text-nowrap">
+                    @if (canEdit)
+                    {
+                        <a asp-page="Edit" asp-route-id="@c.Id" class="btn btn-sm btn-link py-0">Edit</a>
+                        <form method="post" asp-page-handler="Delete" asp-route-id="@c.Id" class="d-inline"
+                              onsubmit="return confirm('Delete this category?');">
+                            <button class="btn btn-sm btn-link text-danger py-0">Delete</button>
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+        @if (Model.Categories.Count == 0) { <tr><td colspan="4" class="muted">No categories yet.</td></tr> }
+        </tbody>
+    </table>
+</div></div>

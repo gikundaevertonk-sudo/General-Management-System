@@ -1,0 +1,36 @@
+@page
+@model GMS.Web.Pages.Users.EditModel
+@{ ViewData["Title"] = Model.IsNew ? "New user" : "Edit user"; Layout = "_Layout"; }
+
+<div class="page-head"><h1>@ViewData["Title"]</h1><a asp-page="Index" class="btn btn-link btn-sm">Back to list</a></div>
+
+@if (Model.Error is not null) { <div class="alert alert-danger">@Model.Error</div> }
+
+<div class="card" style="max-width:600px;"><div class="card-body">
+<form method="post" class="row g-3">
+    <input type="hidden" asp-for="Id" />
+    <div class="col-md-6"><label asp-for="Input.UserName" class="form-label">Username</label><input asp-for="Input.UserName" class="form-control" /></div>
+    <div class="col-md-6"><label asp-for="Input.FullName" class="form-label">Full name</label><input asp-for="Input.FullName" class="form-control" /></div>
+    <div class="col-md-6"><label asp-for="Input.Email" class="form-label">Email</label><input asp-for="Input.Email" class="form-control" /></div>
+    <div class="col-md-6">
+        <label asp-for="Input.RoleId" class="form-label">Role</label>
+        <select asp-for="Input.RoleId" asp-items="Model.RoleOptions" class="form-select"></select>
+    </div>
+    @if (Model.IsNew)
+    {
+        <div class="col-md-6">
+            <label asp-for="TempPassword" class="form-label">Temporary password</label>
+            <input asp-for="TempPassword" type="text" class="form-control" />
+            <div class="form-text">The user must change this on first sign-in.</div>
+        </div>
+    }
+    <div class="col-12 form-check ms-2">
+        <input asp-for="Input.IsActive" class="form-check-input" />
+        <label asp-for="Input.IsActive" class="form-check-label">Active</label>
+    </div>
+    <div class="col-12">
+        <button class="btn btn-primary">Save</button>
+        <a asp-page="Index" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+</form>
+</div></div>

@@ -1,0 +1,73 @@
+@page
+@model GMS.Web.Pages.Products.IndexModel
+@{ ViewData["Title"] = "Products"; Layout = "_Layout"; }
+
+<div class="page-head">
+    <h1>Products</h1>
+    @if (Me.HasPermission(PermissionCodes.Products.Edit))
+    {
+        <a asp-page="Edit" class="btn btn-primary btn-sm">New product</a>
+    }
+</div>
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-12 col-sm-6 col-md-4">
+        <input name="q" value="@Model.Q" class="form-control form-control-sm" placeholder="Search name or SKU…" />
+    </div>
+    <div class="col-auto form-check d-flex align-items-center ms-2">
+        <input class="form-check-input me-1" type="checkbox" name="low" value="true" id="low" @(Model.Low ? "checked" : "") />
+        <label class="form-check-label" for="low">Low stock only</label>
+    </div>
+    <div class="col-auto"><button class="btn btn-outline-secondary btn-sm">Filter</button></div>
+</form>
+
+@if (Model.Results is { } r)
+{
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0 align-middle">
+                <thead><tr>
+                    <th>SKU</th><th>Name</th><th>Category</th>
+                    <th class="text-end">Price</th><th class="text-end">Cost</th>
+                    <th class="text-end">On hand</th><th class="text-end">Reorder</th><th>Active</th><th></th>
+                </tr></thead>
+                <tbody>
+                @foreach (var p in r.Items)
+                {
+                    var low = p.IsActive && p.QuantityOnHand <= p.ReorderLevel;
+                    <tr>
+                        <td>@p.Sku</td>
+                        <td>@p.Name</td>
+                        <td>@(p.CategoryId is int cid && Model.CategoryNames.TryGetValue(cid, out var n) ? n : "—")</td>
+                        <td class="text-end">@p.UnitPrice.ToString("N2")</td>
+                        <td class="text-end">@p.CostPrice.ToString("N2")</td>
+                        <td class="text-end @(low ? "low-stock" : "")">@p.QuantityOnHand.ToString("N3")</td>
+                        <td class="text-end">@p.ReorderLevel.ToString("N3")</td>
+                        <td>@(p.IsActive ? "Yes" : "No")</td>
+                        <td class="text-end">
+                            @if (Me.HasPermission(PermissionCodes.Products.Edit))
+                            {
+                                <a asp-page="Edit" asp-route-id="@p.Id" class="btn btn-sm btn-link py-0">Edit</a>
+                            }
+                        </td>
+                    </tr>
+                }
+                @if (r.Items.Count == 0)
+                {
+                    <tr><td colspan="9" class="muted">No products found.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <nav class="mt-3 d-flex justify-content-between align-items-center">
+        <span class="muted small">Page @r.Page of @Math.Max(1, r.TotalPages) · @r.TotalCount item(s)</span>
+        <div class="btn-group btn-group-sm">
+            <a class="btn btn-outline-secondary @(r.HasPrevious ? "" : "disabled")"
+               asp-route-pageNo="@(r.Page - 1)" asp-route-q="@Model.Q" asp-route-low="@Model.Low">‹ Prev</a>
+            <a class="btn btn-outline-secondary @(r.HasNext ? "" : "disabled")"
+               asp-route-pageNo="@(r.Page + 1)" asp-route-q="@Model.Q" asp-route-low="@Model.Low">Next ›</a>
+        </div>
+    </nav>
+}

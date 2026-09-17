@@ -1,0 +1,39 @@
+@page
+@model GMS.Web.Pages.Audit.IndexModel
+@{ ViewData["Title"] = "Audit trail"; Layout = "_Layout"; }
+
+<div class="page-head"><h1>Audit trail</h1></div>
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-12 col-md-4"><input name="q" value="@Model.Q" class="form-control form-control-sm" placeholder="Filter by user, entity or id…" /></div>
+    <div class="col-auto"><button class="btn btn-outline-secondary btn-sm">Search</button></div>
+</form>
+
+@if (Model.Results is { } r)
+{
+    <div class="card"><div class="table-responsive"><table class="table table-sm mb-0">
+        <thead><tr><th>When (UTC)</th><th>User</th><th>Action</th><th>Entity</th><th>Id</th><th>Changes</th></tr></thead>
+        <tbody>
+        @foreach (var a in r.Items)
+        {
+            <tr>
+                <td class="muted text-nowrap">@a.TimestampUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                <td>@a.UserName</td>
+                <td>@a.Action</td>
+                <td>@a.EntityName</td>
+                <td>@a.EntityId</td>
+                <td><code class="small">@(a.ChangesJson == "{}" ? "" : a.ChangesJson)</code></td>
+            </tr>
+        }
+        @if (r.Items.Count == 0) { <tr><td colspan="6" class="muted">No audit entries.</td></tr> }
+        </tbody>
+    </table></div></div>
+
+    <nav class="mt-3 d-flex justify-content-between align-items-center">
+        <span class="muted small">Page @r.Page of @Math.Max(1, r.TotalPages) · @r.TotalCount</span>
+        <div class="btn-group btn-group-sm">
+            <a class="btn btn-outline-secondary @(r.HasPrevious ? "" : "disabled")" asp-route-pageNo="@(r.Page - 1)" asp-route-q="@Model.Q">‹ Prev</a>
+            <a class="btn btn-outline-secondary @(r.HasNext ? "" : "disabled")" asp-route-pageNo="@(r.Page + 1)" asp-route-q="@Model.Q">Next ›</a>
+        </div>
+    </nav>
+}

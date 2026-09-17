@@ -1,0 +1,51 @@
+@page
+@model GMS.Web.Pages.Notifications.IndexModel
+@{ ViewData["Title"] = "Notifications"; Layout = "_Layout"; }
+
+<div class="page-head">
+    <h1>Notifications</h1>
+    <div class="d-flex gap-2">
+        @if (Model.CanScan)
+        {
+            <form method="post" asp-page-handler="Scan"><button class="btn btn-outline-secondary btn-sm">Run low-stock scan</button></form>
+        }
+        <form method="post" asp-page-handler="MarkAllRead"><button class="btn btn-outline-secondary btn-sm">Mark all read</button></form>
+    </div>
+</div>
+
+<div class="form-check mb-3">
+    <input class="form-check-input" type="checkbox" id="unread" onchange="location.href='?UnreadOnly='+this.checked" @(Model.UnreadOnly ? "checked" : "") />
+    <label class="form-check-label" for="unread">Unread only</label>
+</div>
+
+<div class="card"><div class="table-responsive">
+    <table class="table table-sm mb-0 align-middle">
+        <thead><tr><th>When (UTC)</th><th>Severity</th><th>Title</th><th>Message</th><th></th></tr></thead>
+        <tbody>
+        @foreach (var n in Model.Items)
+        {
+            var badge = n.Severity switch
+            {
+                GMS.Core.Enums.NotificationSeverity.Critical => "bg-danger",
+                GMS.Core.Enums.NotificationSeverity.Warning => "bg-warning text-dark",
+                _ => "bg-secondary",
+            };
+            <tr class="@(n.IsRead ? "" : "fw-semibold")">
+                <td class="muted fw-normal">@n.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm")</td>
+                <td><span class="badge @badge">@n.Severity</span></td>
+                <td>@n.Title</td>
+                <td class="fw-normal">@n.Message</td>
+                <td class="text-end">
+                    @if (!n.IsRead)
+                    {
+                        <form method="post" asp-page-handler="MarkRead" asp-route-id="@n.Id" class="d-inline">
+                            <button class="btn btn-sm btn-link py-0">Mark read</button>
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+        @if (Model.Items.Count == 0) { <tr><td colspan="5" class="muted">Nothing here.</td></tr> }
+        </tbody>
+    </table>
+</div></div>

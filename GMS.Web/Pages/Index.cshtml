@@ -1,0 +1,56 @@
+@page
+@model GMS.Web.Pages.IndexModel
+@{ ViewData["Title"] = "Dashboard"; Layout = "_Layout"; }
+
+<div class="page-head"><h1>Dashboard</h1></div>
+
+@if (Model.Error is not null)
+{
+    <div class="alert alert-warning">@Model.Error</div>
+}
+else if (Model.Summary is { } s)
+{
+    <div class="row row-cols-2 row-cols-md-4 g-3 mb-4">
+        @{
+            (string label, string value, bool warn)[] cards =
+            {
+                ("Products", s.ProductCount.ToString("N0"), false),
+                ("Low stock", s.LowStockCount.ToString("N0"), s.LowStockCount > 0),
+                ("Inventory value (cost)", s.InventoryValueAtCost.ToString("N2"), false),
+                ("Sales today", s.SalesTodayTotal.ToString("N2"), false),
+                ("Sales this month", s.SalesMonthToDateTotal.ToString("N2"), false),
+                ("Open drafts", s.OpenDraftCount.ToString("N0"), false),
+                ("Customers", s.CustomerCount.ToString("N0"), false),
+                ("Unread alerts", s.UnreadNotificationCount.ToString("N0"), s.UnreadNotificationCount > 0),
+            };
+        }
+        @foreach (var c in cards)
+        {
+            <div class="col">
+                <div class="card stat-card h-100"><div class="card-body">
+                    <div class="stat-label">@c.label</div>
+                    <div class="stat-value @(c.warn ? "low-stock" : "")">@c.value</div>
+                </div></div>
+            </div>
+        }
+    </div>
+
+    <div class="card">
+        <div class="card-header fw-semibold">Recent activity</div>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead><tr><th style="width:170px">When (UTC)</th><th>Activity</th></tr></thead>
+                <tbody>
+                @foreach (var a in s.RecentActivity)
+                {
+                    <tr><td class="muted">@a.WhenUtc.ToString("yyyy-MM-dd HH:mm")</td><td>@a.Summary</td></tr>
+                }
+                @if (s.RecentActivity.Count == 0)
+                {
+                    <tr><td colspan="2" class="muted">No activity yet.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
