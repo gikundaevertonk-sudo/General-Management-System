@@ -58,6 +58,7 @@ app.UseStaticFiles();
 app.UseRouting();
 
 app.UseAuthentication();
+app.UseMiddleware<TenantContextMiddleware>();
 app.UseMiddleware<MustChangePasswordMiddleware>();
 app.UseAuthorization();
 

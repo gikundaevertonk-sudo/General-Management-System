@@ -1,4 +1,5 @@
 Imports System.Windows.Forms
+Imports GMS.Core.Data
 Imports GMS.Core.Services
 Imports GMS.Desktop.App
 Imports GMS.Desktop.Forms
@@ -46,6 +47,7 @@ Namespace Global.GMS.Desktop
 
                 host.Session.Principal = principal
                 host.Session.TenantId = principal.OrganizationId
+                GmsDbContext.SetTenantId(principal.OrganizationId)
                 Return True
             Loop
         End Function
