@@ -29,7 +29,8 @@ Namespace Services
 
         ''' <summary>Idempotent: safe to call on every startup.</summary>
         Public Sub SeedBaseline()
-            SeedBaseline(organizationId:=Nothing)
+            Dim defaultOrgId = SeedDefaultOrganization()
+            SeedBaseline(organizationId:=defaultOrgId)
         End Sub
 
         ''' <summary>Idempotent: safe to call for a new organization.</summary>
@@ -45,6 +46,45 @@ Namespace Services
             End If
             _uow.SaveChanges()
         End Sub
+
+        ''' <summary>Ensures the default organization exists (ID=1). Returns the organization ID.</summary>
+        Private Function SeedDefaultOrganization() As Integer
+            Dim orgRepo = _uow.Repository(Of Organization)()
+            Dim existing = orgRepo.Query().FirstOrDefault(Function(o) o.Id = 1)
+            If existing IsNot Nothing Then Return 1
+
+            Dim org = New Organization With {
+                .Id = 1,
+                .Name = "Default Organization",
+                .Code = "default",
+                .Email = "admin@example.com",
+                .Plan = "trial",
+                .TrialEndsAtUtc = _clock.UtcNow.AddDays(30),
+                .IsActive = True,
+                .MaxUsers = 10,
+                .Features = "{}",
+                .CreatedAtUtc = _clock.UtcNow
+            }
+            orgRepo.Add(org)
+
+            ' Create a subscription record for the organization
+            Dim subRepo = _uow.Repository(Of Subscription)()
+            Dim subscription = New Subscription With {
+                .OrganizationId = 1,
+                .Plan = "trial",
+                .PlanName = "Trial",
+                .PricePerMonth = 0,
+                .AutoRenew = False,
+                .BillingCycleStartAtUtc = _clock.UtcNow,
+                .BillingCycleEndAtUtc = _clock.UtcNow.AddDays(30),
+                .PaymentStatus = "active",
+                .CreatedAtUtc = _clock.UtcNow
+            }
+            subRepo.Add(subscription)
+
+            _uow.SaveChanges()
+            Return 1
+        End Function
 
         Private Sub SeedPermissions()
             Dim repo = _uow.Repository(Of Permission)()
