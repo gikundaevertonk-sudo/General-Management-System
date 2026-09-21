@@ -59,6 +59,7 @@ app.UseRouting();
 
 app.UseAuthentication();
 app.UseMiddleware<TenantContextMiddleware>();
+app.UseMiddleware<TrialExpiryMiddleware>();
 app.UseMiddleware<MustChangePasswordMiddleware>();
 app.UseAuthorization();
 
