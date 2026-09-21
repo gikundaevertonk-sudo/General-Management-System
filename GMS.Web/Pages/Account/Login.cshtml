@@ -20,8 +20,13 @@
                 <form method="post">
                     <input type="hidden" asp-for="ReturnUrl" />
                     <div class="mb-3">
+                        <label asp-for="Input.OrganizationCode" class="form-label">Organization</label>
+                        <input asp-for="Input.OrganizationCode" class="form-control" autofocus autocomplete="off" placeholder="e.g., acme-inc" />
+                        <span asp-validation-for="Input.OrganizationCode" class="text-danger small"></span>
+                    </div>
+                    <div class="mb-3">
                         <label asp-for="Input.UserName" class="form-label">Username</label>
-                        <input asp-for="Input.UserName" class="form-control" autofocus autocomplete="username" />
+                        <input asp-for="Input.UserName" class="form-control" autocomplete="username" />
                         <span asp-validation-for="Input.UserName" class="text-danger small"></span>
                     </div>
                     <div class="mb-4">

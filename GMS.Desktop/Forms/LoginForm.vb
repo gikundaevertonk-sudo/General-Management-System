@@ -19,7 +19,7 @@ Namespace Forms
             btnSignIn.Enabled = False
             Try
                 Dim auth = AppHost.Current.Resolve(Of AuthService)()
-                Dim result = auth.SignIn(txtUser.Text.Trim(), txtPass.Text)
+                Dim result = auth.SignInWithTenant(txtUser.Text.Trim(), txtPass.Text, txtOrg.Text.Trim())
                 If result.Failed Then
                     lblError.Text = result.ErrorMessage
                     txtPass.SelectAll()
