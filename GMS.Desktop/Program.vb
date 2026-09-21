@@ -45,6 +45,7 @@ Namespace Global.GMS.Desktop
                 End If
 
                 host.Session.Principal = principal
+                host.Session.TenantId = principal.OrganizationId
                 Return True
             Loop
         End Function

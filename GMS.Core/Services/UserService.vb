@@ -21,9 +21,9 @@ Namespace Services
         Private ReadOnly _hasher As IPasswordHasher
         Private ReadOnly _audit As AuditService
 
-        Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, clock As IClock,
+        Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, tenantContext As ITenantContext, clock As IClock,
                        hasher As IPasswordHasher, audit As AuditService)
-            MyBase.New(uow, currentUser, clock)
+            MyBase.New(uow, currentUser, tenantContext, clock)
             _hasher = Guard.NotNull(hasher)
             _audit = Guard.NotNull(audit)
         End Sub

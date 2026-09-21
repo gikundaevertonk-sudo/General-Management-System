@@ -9,8 +9,8 @@ Namespace Services
     Public Class SubscriptionService
         Inherits ServiceBase
 
-        Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, clock As IClock)
-            MyBase.New(uow, currentUser, clock)
+        Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, tenantContext As ITenantContext, clock As IClock)
+            MyBase.New(uow, currentUser, tenantContext, clock)
         End Sub
 
         ''' <summary>Check if organization's subscription is active.</summary>

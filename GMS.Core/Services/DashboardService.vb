@@ -13,8 +13,8 @@ Namespace Services
 
         Private ReadOnly _notifications As NotificationService
 
-        Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, clock As IClock, notifications As NotificationService)
-            MyBase.New(uow, currentUser, clock)
+        Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, tenantContext As ITenantContext, clock As IClock, notifications As NotificationService)
+            MyBase.New(uow, currentUser, tenantContext, clock)
             _notifications = Guard.NotNull(notifications)
         End Sub
 

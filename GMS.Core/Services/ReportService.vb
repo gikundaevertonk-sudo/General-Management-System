@@ -17,8 +17,8 @@ Namespace Services
     Public NotInheritable Class ReportService
         Inherits ServiceBase
 
-        Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, clock As IClock)
-            MyBase.New(uow, currentUser, clock)
+        Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, tenantContext As ITenantContext, clock As IClock)
+            MyBase.New(uow, currentUser, tenantContext, clock)
         End Sub
 
         Public Function SalesSummary(range As DateRange) As Result(Of SalesSummaryReport)

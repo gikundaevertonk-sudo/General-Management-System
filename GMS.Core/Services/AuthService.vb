@@ -14,8 +14,8 @@ Namespace Services
         Private ReadOnly _lockoutWindow As TimeSpan = TimeSpan.FromMinutes(15)
         Private ReadOnly _hasher As IPasswordHasher
 
-        Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, clock As IClock, hasher As IPasswordHasher)
-            MyBase.New(uow, currentUser, clock)
+        Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, tenantContext As ITenantContext, clock As IClock, hasher As IPasswordHasher)
+            MyBase.New(uow, currentUser, tenantContext, clock)
             _hasher = Guard.NotNull(hasher)
         End Sub
 
@@ -27,6 +27,61 @@ Namespace Services
             Dim users = Uow.Repository(Of User)()
             Dim user = users.Query().FirstOrDefault(
                 Function(u) u.UserName.ToLower() = userName.Trim().ToLower())
+
+            ' Same message whether the user is missing or the password is wrong.
+            Dim invalid = Result(Of AuthenticatedUser).Fail("Invalid username or password.")
+            If user Is Nothing Then Return invalid
+
+            If Not user.IsActive Then
+                Return Result(Of AuthenticatedUser).Fail("This account has been deactivated.")
+            End If
+
+            If user.LockedOutUntilUtc.HasValue AndAlso user.LockedOutUntilUtc.Value > Clock.UtcNow Then
+                Return Result(Of AuthenticatedUser).Fail(
+                    $"Account locked. Try again after {user.LockedOutUntilUtc.Value:t} UTC.")
+            End If
+
+            If Not _hasher.Verify(password, user.PasswordHash) Then
+                user.FailedLoginCount += 1
+                If user.FailedLoginCount >= MaxFailedAttempts Then
+                    user.LockedOutUntilUtc = Clock.UtcNow.Add(_lockoutWindow)
+                    user.FailedLoginCount = 0
+                End If
+                users.Update(user)
+                Uow.SaveChanges()
+                Return invalid
+            End If
+
+            user.FailedLoginCount = 0
+            user.LockedOutUntilUtc = Nothing
+            user.LastLoginUtc = Clock.UtcNow
+            users.Update(user)
+            Uow.SaveChanges()
+
+            Return Result(Of AuthenticatedUser).Ok(Project(user))
+        End Function
+
+        Public Function SignInWithTenant(userName As String, password As String, organizationCode As String) As Result(Of AuthenticatedUser)
+            If String.IsNullOrWhiteSpace(userName) OrElse String.IsNullOrEmpty(password) OrElse String.IsNullOrWhiteSpace(organizationCode) Then
+                Return Result(Of AuthenticatedUser).Fail("Enter organization code, username and password.")
+            End If
+
+            ' Find organization by code
+            Dim orgs = Uow.Repository(Of Organization)()
+            Dim organization = orgs.Query().FirstOrDefault(
+                Function(o) o.Code.ToLower() = organizationCode.Trim().ToLower())
+            If organization Is Nothing Then
+                Return Result(Of AuthenticatedUser).Fail("Organization not found.")
+            End If
+
+            If Not organization.IsActive Then
+                Return Result(Of AuthenticatedUser).Fail("This organization has been deactivated.")
+            End If
+
+            ' Find user by username and organization
+            Dim users = Uow.Repository(Of User)()
+            Dim user = users.Query().FirstOrDefault(
+                Function(u) u.UserName.ToLower() = userName.Trim().ToLower() AndAlso u.OrganizationId = organization.Id)
 
             ' Same message whether the user is missing or the password is wrong.
             Dim invalid = Result(Of AuthenticatedUser).Fail("Invalid username or password.")
@@ -116,6 +171,7 @@ Namespace Services
                 .Email = user.Email,
                 .RoleId = user.RoleId,
                 .RoleName = If(role?.Name, String.Empty),
+                .OrganizationId = user.OrganizationId,
                 .MustChangePassword = user.MustChangePassword,
                 .Permissions = permissions
             }

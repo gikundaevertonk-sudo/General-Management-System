@@ -40,6 +40,7 @@ Namespace App
             End If
             services.AddSingleton(Of SessionContext)()
             services.AddSingleton(Of ICurrentUser, DesktopCurrentUser)()
+            services.AddScoped(Of ITenantContext, DesktopTenantContext)()
 
             _root = services.BuildServiceProvider(validateScopes:=False)
             _scope = _root.CreateScope()

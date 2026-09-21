@@ -28,6 +28,7 @@ else
     builder.Services.AddGmsCore();
 
 builder.Services.AddScoped<ICurrentUser, WebCurrentUser>();
+builder.Services.AddScoped<ITenantContext, WebTenantContext>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>

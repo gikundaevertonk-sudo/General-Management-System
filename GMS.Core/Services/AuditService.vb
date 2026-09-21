@@ -27,8 +27,8 @@ Namespace Services
     Public NotInheritable Class AuditService
         Inherits ServiceBase
 
-        Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, clock As IClock)
-            MyBase.New(uow, currentUser, clock)
+        Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, tenantContext As ITenantContext, clock As IClock)
+            MyBase.New(uow, currentUser, tenantContext, clock)
         End Sub
 
         ''' <summary>Record one change. <paramref name="changes"/> maps field name to its before/after values.</summary>

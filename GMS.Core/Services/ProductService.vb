@@ -24,8 +24,8 @@ Namespace Services
 
         Private ReadOnly _audit As AuditService
 
-        Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, clock As IClock, audit As AuditService)
-            MyBase.New(uow, currentUser, clock)
+        Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, tenantContext As ITenantContext, clock As IClock, audit As AuditService)
+            MyBase.New(uow, currentUser, tenantContext, clock)
             _audit = Guard.NotNull(audit)
         End Sub
 

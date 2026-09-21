@@ -18,8 +18,8 @@ Namespace Services
     Public NotInheritable Class SupplierService
         Inherits ServiceBase
 
-        Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, clock As IClock)
-            MyBase.New(uow, currentUser, clock)
+        Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, tenantContext As ITenantContext, clock As IClock)
+            MyBase.New(uow, currentUser, tenantContext, clock)
         End Sub
 
         Public Function Search(options As QueryOptions) As Result(Of PagedResult(Of Supplier))

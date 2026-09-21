@@ -11,6 +11,7 @@ Namespace Contracts
         Public Property Email As String = String.Empty
         Public Property RoleId As Integer
         Public Property RoleName As String = String.Empty
+        Public Property OrganizationId As Integer
         Public Property MustChangePassword As Boolean
         Public Property Permissions As IReadOnlyCollection(Of String) = New List(Of String)()
 

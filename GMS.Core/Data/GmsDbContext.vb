@@ -12,9 +12,19 @@ Namespace Data
     Public NotInheritable Class GmsDbContext
         Inherits DbContext
 
+        Private Shared _tenantId As Integer = 1
+
         Public Sub New(options As DbContextOptions(Of GmsDbContext))
             MyBase.New(options)
         End Sub
+
+        Public Shared Sub SetTenantId(tenantId As Integer)
+            _tenantId = tenantId
+        End Sub
+
+        Public Shared Function GetTenantId() As Integer
+            Return _tenantId
+        End Function
 
         Public Property Organizations As DbSet(Of Organization)
         Public Property Subscriptions As DbSet(Of Subscription)
@@ -100,6 +110,18 @@ Namespace Data
             b.Entity(Of StockMovement)().Ignore(Function(m) m.SignedQuantity)
 
             b.Entity(Of AuditEntry)().Property(Function(a) a.ChangesJson).HasColumnType("jsonb")
+
+            ' Global query filters for multi-tenancy: automatically filter all tenant-scoped entities
+            b.Entity(Of User)().HasQueryFilter(Function(u) u.OrganizationId = _tenantId)
+            b.Entity(Of Category)().HasQueryFilter(Function(c) c.OrganizationId = _tenantId)
+            b.Entity(Of Product)().HasQueryFilter(Function(p) p.OrganizationId = _tenantId)
+            b.Entity(Of Supplier)().HasQueryFilter(Function(s) s.OrganizationId = _tenantId)
+            b.Entity(Of Customer)().HasQueryFilter(Function(c) c.OrganizationId = _tenantId)
+            b.Entity(Of Transaction)().HasQueryFilter(Function(t) t.OrganizationId = _tenantId)
+            b.Entity(Of StockMovement)().HasQueryFilter(Function(m) m.OrganizationId = _tenantId)
+            b.Entity(Of Notification)().HasQueryFilter(Function(n) n.OrganizationId = _tenantId)
+            b.Entity(Of AppSetting)().HasQueryFilter(Function(s) s.OrganizationId = _tenantId)
+            b.Entity(Of AuditEntry)().HasQueryFilter(Function(a) a.OrganizationId = _tenantId)
 
             ' StockMovement.UserId, AuditEntry.UserId and Notification.TargetUserId have no
             ' navigation property, so EF leaves them as plain integer columns (no FK) — matching

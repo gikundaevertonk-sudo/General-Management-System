@@ -8,11 +8,13 @@ Namespace Services
 
         Protected ReadOnly Uow As IUnitOfWork
         Protected ReadOnly CurrentUser As ICurrentUser
+        Protected ReadOnly TenantContext As ITenantContext
         Protected ReadOnly Clock As IClock
 
-        Protected Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, clock As IClock)
+        Protected Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, tenantContext As ITenantContext, clock As IClock)
             Me.Uow = Guard.NotNull(uow)
             Me.CurrentUser = Guard.NotNull(currentUser)
+            Me.TenantContext = Guard.NotNull(tenantContext)
             Me.Clock = Guard.NotNull(clock)
         End Sub
 

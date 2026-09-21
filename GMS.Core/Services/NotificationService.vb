@@ -10,8 +10,8 @@ Namespace Services
     Public NotInheritable Class NotificationService
         Inherits ServiceBase
 
-        Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, clock As IClock)
-            MyBase.New(uow, currentUser, clock)
+        Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, tenantContext As ITenantContext, clock As IClock)
+            MyBase.New(uow, currentUser, tenantContext, clock)
         End Sub
 
         ''' <summary>Notifications for the current user: their own plus broadcasts.</summary>

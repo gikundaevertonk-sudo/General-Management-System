@@ -18,6 +18,7 @@ public class LoginModel(AuthService auth) : PageModel
 
     public sealed class InputModel
     {
+        [Required] public string OrganizationCode { get; set; } = "";
         [Required] public string UserName { get; set; } = "";
         [Required, DataType(DataType.Password)] public string Password { get; set; } = "";
     }
@@ -32,13 +33,14 @@ public class LoginModel(AuthService auth) : PageModel
     {
         if (!ModelState.IsValid) return Page();
 
-        var result = auth.SignIn(Input.UserName, Input.Password);
+        var result = auth.SignInWithTenant(Input.UserName, Input.Password, Input.OrganizationCode);
         if (result.Failed)
         {
             Error = result.ErrorMessage;
             return Page();
         }
 
+        HttpContext.Items["TenantId"] = result.Value.OrganizationId;
         var principal = Claims.BuildPrincipal(result.Value, CookieAuthenticationDefaults.AuthenticationScheme);
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
 

@@ -43,6 +43,7 @@ public static class Claims
     public const string Permission = "perm";
     public const string FullName = "fullname";
     public const string MustChangePassword = "mustchange";
+    public const string OrganizationId = "org_id";
 
     /// <summary>Builds the cookie identity for a freshly authenticated user.</summary>
     public static ClaimsPrincipal BuildPrincipal(AuthenticatedUser user, string authScheme)
@@ -54,6 +55,7 @@ public static class Claims
             new(ClaimTypes.Role, user.RoleName),
             new(FullName, string.IsNullOrWhiteSpace(user.FullName) ? user.UserName : user.FullName),
             new(MustChangePassword, user.MustChangePassword ? "1" : "0"),
+            new(OrganizationId, user.OrganizationId.ToString()),
         };
         claims.AddRange(user.Permissions.Select(code => new Claim(Permission, code)));
 

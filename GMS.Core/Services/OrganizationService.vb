@@ -10,7 +10,7 @@ Namespace Services
         Inherits ServiceBase
 
         Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, tenantContext As ITenantContext, clock As IClock)
-            MyBase.New(uow, currentUser, clock)
+            MyBase.New(uow, currentUser, tenantContext, clock)
             _tenantContext = tenantContext
         End Sub
 

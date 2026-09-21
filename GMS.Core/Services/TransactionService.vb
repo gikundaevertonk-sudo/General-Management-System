@@ -25,10 +25,10 @@ Namespace Services
         Private ReadOnly _settings As SettingsService
         Private ReadOnly _audit As AuditService
 
-        Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, clock As IClock,
+        Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, tenantContext As ITenantContext, clock As IClock,
                        inventory As InventoryService, notifications As NotificationService,
                        settings As SettingsService, audit As AuditService)
-            MyBase.New(uow, currentUser, clock)
+            MyBase.New(uow, currentUser, tenantContext, clock)
             _inventory = Guard.NotNull(inventory)
             _notifications = Guard.NotNull(notifications)
             _settings = Guard.NotNull(settings)
