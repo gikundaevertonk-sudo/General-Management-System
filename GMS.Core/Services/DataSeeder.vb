@@ -29,10 +29,20 @@ Namespace Services
 
         ''' <summary>Idempotent: safe to call on every startup.</summary>
         Public Sub SeedBaseline()
+            SeedBaseline(organizationId:=Nothing)
+        End Sub
+
+        ''' <summary>Idempotent: safe to call for a new organization.</summary>
+        Public Sub SeedBaseline(organizationId As Integer?)
             SeedPermissions()
             Dim roles = SeedRoles()
-            SeedAdminUser(roles.admin)
-            SeedSettings()
+            If organizationId.HasValue Then
+                SeedAdminUser(roles.admin, organizationId.Value)
+                SeedSettings(organizationId.Value)
+            Else
+                SeedAdminUser(roles.admin)
+                SeedSettings()
+            End If
             _uow.SaveChanges()
         End Sub
 
@@ -100,14 +110,24 @@ Namespace Services
         End Sub
 
         Private Sub SeedAdminUser(adminRole As Role)
+            SeedAdminUser(adminRole, organizationId:=1)
+        End Sub
+
+        Private Sub SeedAdminUser(adminRole As Role, organizationId As Integer)
             Dim repo = _uow.Repository(Of User)()
-            If repo.Query().Any(Function(u) u.UserName.ToLower() = DefaultAdminUserName) Then Return
+            ' For org-specific seeding, ensure no existing admin in that org
+            If organizationId > 1 Then
+                If repo.Query().Any(Function(u) u.UserName.ToLower() = DefaultAdminUserName AndAlso u.OrganizationId = organizationId) Then Return
+            Else
+                If repo.Query().Any(Function(u) u.UserName.ToLower() = DefaultAdminUserName) Then Return
+            End If
 
             repo.Add(New User With {
                 .UserName = DefaultAdminUserName,
                 .Email = "admin@example.com",
                 .FullName = "System Administrator",
                 .RoleId = adminRole.Id,
+                .OrganizationId = organizationId,
                 .IsActive = True,
                 .MustChangePassword = True,
                 .PasswordHash = _hasher.Hash(DefaultAdminPassword),
@@ -116,16 +136,29 @@ Namespace Services
         End Sub
 
         Private Sub SeedSettings()
+            SeedSettings(organizationId:=1)
+        End Sub
+
+        Private Sub SeedSettings(organizationId As Integer)
             Dim repo = _uow.Repository(Of AppSetting)()
             Dim defaults As New Dictionary(Of String, String) From {
                 {SettingKeys.CompanyName, "My Business"},
-                {SettingKeys.CurrencyCode, "USD"},
+                {SettingKeys.CurrencyCode, "KES"},
                 {SettingKeys.DefaultTaxRatePercent, "0"},
-                {SettingKeys.LowStockScanEnabled, "true"}
+                {SettingKeys.LowStockScanEnabled, "true"},
+                {SettingKeys.TimeZone, "Africa/Nairobi"}
             }
             For Each kv In defaults
-                If Not repo.Query().Any(Function(s) s.Key = kv.Key) Then
-                    repo.Add(New AppSetting With {.Key = kv.Key, .Value = kv.Value})
+                Dim checkQuery = If(organizationId > 1,
+                    repo.Query().Any(Function(s) s.Key = kv.Key AndAlso s.OrganizationId = organizationId),
+                    repo.Query().Any(Function(s) s.Key = kv.Key))
+
+                If Not checkQuery Then
+                    repo.Add(New AppSetting With {
+                        .Key = kv.Key,
+                        .Value = kv.Value,
+                        .OrganizationId = organizationId
+                    })
                 End If
             Next
         End Sub

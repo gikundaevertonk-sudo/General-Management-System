@@ -4,6 +4,8 @@ Namespace Models
     Public Class Category
         Inherits AuditableEntity
 
+        Public Property OrganizationId As Integer
+        Public Property Organization As Organization
         Public Property Name As String = String.Empty
         Public Property Description As String = String.Empty
         Public Property ParentCategoryId As Integer?
@@ -16,6 +18,8 @@ Namespace Models
     Public Class Product
         Inherits AuditableEntity
 
+        Public Property OrganizationId As Integer
+        Public Property Organization As Organization
         Public Property Sku As String = String.Empty
         Public Property Name As String = String.Empty
         Public Property Description As String = String.Empty
@@ -41,6 +45,8 @@ Namespace Models
     Public Class Supplier
         Inherits AuditableEntity
 
+        Public Property OrganizationId As Integer
+        Public Property Organization As Organization
         Public Property Name As String = String.Empty
         Public Property ContactName As String = String.Empty
         Public Property Email As String = String.Empty
@@ -53,6 +59,8 @@ Namespace Models
     Public Class Customer
         Inherits AuditableEntity
 
+        Public Property OrganizationId As Integer
+        Public Property Organization As Organization
         Public Property Code As String = String.Empty
         Public Property Name As String = String.Empty
         Public Property ContactName As String = String.Empty

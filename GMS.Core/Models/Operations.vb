@@ -9,6 +9,8 @@ Namespace Models
     Public Class Transaction
         Inherits AuditableEntity
 
+        Public Property OrganizationId As Integer
+        Public Property Organization As Organization
         ''' <summary>Human reference, e.g. SAL-2026-0001 / PUR-2026-0007.</summary>
         Public Property TransactionNumber As String = String.Empty
         Public Property Type As TransactionType
@@ -56,6 +58,8 @@ Namespace Models
     Public Class StockMovement
         Inherits EntityBase
 
+        Public Property OrganizationId As Integer
+        Public Property Organization As Organization
         Public Property ProductId As Integer
         Public Property Product As Product
         Public Property TransactionLineId As Integer?
@@ -82,6 +86,8 @@ Namespace Models
     Public Class AuditEntry
         Inherits EntityBase
 
+        Public Property OrganizationId As Integer
+        Public Property Organization As Organization
         Public Property EntityName As String = String.Empty
         Public Property EntityId As String = String.Empty
         Public Property Action As AuditAction
@@ -96,6 +102,8 @@ Namespace Models
     Public Class Notification
         Inherits EntityBase
 
+        Public Property OrganizationId As Integer
+        Public Property Organization As Organization
         Public Property Type As NotificationType
         Public Property Severity As NotificationSeverity = NotificationSeverity.Info
         Public Property Title As String = String.Empty
@@ -110,10 +118,12 @@ Namespace Models
         Public Property ReadAtUtc As DateTime?
     End Class
 
-    ''' <summary>Key/value application configuration (company name, currency, tax rate…).</summary>
+    ''' <summary>Key/value application configuration (company name, currency, tax rate…). Tenant-scoped.</summary>
     Public Class AppSetting
         Inherits EntityBase
 
+        Public Property OrganizationId As Integer
+        Public Property Organization As Organization
         Public Property Key As String = String.Empty
         Public Property Value As String = String.Empty
     End Class

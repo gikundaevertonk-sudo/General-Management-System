@@ -42,6 +42,8 @@ Namespace Models
         Public Property PasswordHash As String = String.Empty
         Public Property RoleId As Integer
         Public Property Role As Role
+        Public Property OrganizationId As Integer ' Multi-tenant: users belong to one organization
+        Public Property Organization As Organization
         Public Property IsActive As Boolean = True
         ''' <summary>Forces a password change on next successful sign-in.</summary>
         Public Property MustChangePassword As Boolean
