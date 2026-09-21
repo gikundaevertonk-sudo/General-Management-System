@@ -10,6 +10,37 @@
 }
 else if (Model.Summary is { } s)
 {
+    <h2 class="h6 text-uppercase muted mb-2">Quick actions</h2>
+    <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-3 mb-4">
+        @{
+            (string label, string desc, string href, bool show)[] modules =
+            {
+                ("Products", "Catalogue & pricing", "/Products/Index", Me.HasPermission(PermissionCodes.Products.View)),
+                ("Categories", "Organise the catalogue", "/Categories/Index", Me.HasPermission(PermissionCodes.Categories.View)),
+                ("Customers", "Accounts & contacts", "/Customers/Index", Me.HasPermission(PermissionCodes.Customers.View)),
+                ("Suppliers", "Vendors you buy from", "/Suppliers/Index", Me.HasPermission(PermissionCodes.Suppliers.View)),
+                ("Transactions", "Sales & purchases", "/Transactions/Index", Me.HasPermission(PermissionCodes.Transactions.View)),
+                ("Inventory", "Stock levels & adjustments", "/Inventory/Index", Me.HasPermission(PermissionCodes.Inventory.View)),
+                ("Reports", "Summaries & exports", "/Reports/Index", Me.HasPermission(PermissionCodes.Reports.View)),
+                ("Users & Roles", "Access control", "/Users/Index", Me.HasPermission(PermissionCodes.Users.View)),
+                ("Notifications", "Alerts & reminders", "/Notifications/Index", true),
+                ("Audit trail", "Who did what, when", "/Audit/Index", Me.HasPermission(PermissionCodes.Audit.View)),
+                ("Settings", "Company & system setup", "/Settings/Index", Me.HasPermission(PermissionCodes.Settings.Manage)),
+            };
+        }
+        @foreach (var m in modules.Where(m => m.show))
+        {
+            <div class="col">
+                <a href="@m.href" class="card module-btn h-100 text-decoration-none">
+                    <div class="card-body">
+                        <div class="module-title">@m.label</div>
+                        <div class="module-desc">@m.desc</div>
+                    </div>
+                </a>
+            </div>
+        }
+    </div>
+
     <div class="row row-cols-2 row-cols-md-4 g-3 mb-4">
         @{
             (string label, string value, bool warn)[] cards =

@@ -88,6 +88,8 @@ Namespace DependencyInjection
             services.AddScoped(Of ReportService)()
             services.AddScoped(Of DashboardService)()
             services.AddScoped(Of DataSeeder)()
+            services.AddScoped(Of OrganizationService)()
+            services.AddScoped(Of SubscriptionService)()
         End Sub
     End Module
 

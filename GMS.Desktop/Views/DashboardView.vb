@@ -1,5 +1,6 @@
 Imports System.Drawing
 Imports System.Windows.Forms
+Imports GMS.Core.Security
 Imports GMS.Core.Services
 Imports GMS.Desktop.App
 
@@ -8,15 +9,24 @@ Namespace Views
     Public NotInheritable Class DashboardView
         Inherits ViewBase
 
+        Private ReadOnly _onNavigate As Action(Of String)
+        Private ReadOnly _launcher As New FlowLayoutPanel()
         Private ReadOnly _cards As New FlowLayoutPanel()
         Private ReadOnly _activity As DataGridView = UiKit.MakeGrid()
 
-        Public Sub New()
+        Public Sub New(onNavigate As Action(Of String))
             MyBase.New("Dashboard")
+            _onNavigate = onNavigate
 
             Dim refresh = UiKit.SecondaryButton("Refresh")
             AddHandler refresh.Click, Sub() Reload()
             AddAction(refresh)
+
+            _launcher.Dock = DockStyle.Top
+            _launcher.Height = 160
+            _launcher.Padding = New Padding(16, 16, 16, 0)
+            _launcher.AutoScroll = True
+            BuildLauncher()
 
             _cards.Dock = DockStyle.Top
             _cards.Height = 220
@@ -32,9 +42,45 @@ Namespace Views
 
             Body.Controls.Add(activityWrap)
             Body.Controls.Add(_cards)
+            Body.Controls.Add(_launcher)
 
             Reload()
         End Sub
+
+        Private Sub BuildLauncher()
+            Dim session = AppHost.Current.Session
+            Dim modules = {
+                ("products", "Products", "Catalogue & pricing", PermissionCodes.Products.View),
+                ("categories", "Categories", "Organise the catalogue", PermissionCodes.Categories.View),
+                ("customers", "Customers", "Accounts & contacts", PermissionCodes.Customers.View),
+                ("suppliers", "Suppliers", "Vendors you buy from", PermissionCodes.Suppliers.View),
+                ("transactions", "Transactions", "Sales & purchases", PermissionCodes.Transactions.View),
+                ("inventory", "Inventory", "Stock levels & adjustments", PermissionCodes.Inventory.View),
+                ("reports", "Reports", "Summaries & exports", PermissionCodes.Reports.View),
+                ("users", "Users & Roles", "Access control", PermissionCodes.Users.View),
+                ("notifications", "Notifications", "Alerts & reminders", CType(Nothing, String)),
+                ("audit", "Audit trail", "Who did what, when", PermissionCodes.Audit.View),
+                ("settings", "Settings", "Company & system setup", PermissionCodes.Settings.Manage)
+            }
+
+            For Each m In modules
+                If m.Item4 IsNot Nothing AndAlso Not session.Principal.HasPermission(m.Item4) Then Continue For
+                _launcher.Controls.Add(LaunchButton(m.Item1, m.Item2, m.Item3))
+            Next
+        End Sub
+
+        Private Function LaunchButton(key As String, title As String, subtitle As String) As Control
+            Dim b As New Button With {
+                .Size = New Size(150, 90), .Margin = New Padding(0, 0, 12, 12), .FlatStyle = FlatStyle.Flat,
+                .BackColor = Color.White, .ForeColor = Color.FromArgb(17, 24, 39), .Cursor = Cursors.Hand,
+                .TextAlign = ContentAlignment.TopLeft, .Padding = New Padding(12, 10, 8, 8),
+                .Text = title & Environment.NewLine & Environment.NewLine & subtitle,
+                .Font = New Font("Segoe UI Semibold", 9.5F)}
+            b.FlatAppearance.BorderColor = Color.FromArgb(229, 231, 235)
+            b.FlatAppearance.MouseOverBackColor = Color.FromArgb(239, 246, 255)
+            AddHandler b.Click, Sub() _onNavigate?.Invoke(key)
+            Return b
+        End Function
 
         Public Sub Reload()
             Guarded(Sub()

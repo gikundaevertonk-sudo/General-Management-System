@@ -12,6 +12,9 @@ Namespace App
         ''' <summary>The signed-in principal, or <c>Nothing</c> before sign-in.</summary>
         Public Property Principal As AuthenticatedUser
 
+        ''' <summary>The organization (tenant) ID for the current session.</summary>
+        Public Property TenantId As Integer
+
         ''' <summary>
         ''' When true every permission check passes and no principal is required.
         ''' Used only while seeding at start-up.

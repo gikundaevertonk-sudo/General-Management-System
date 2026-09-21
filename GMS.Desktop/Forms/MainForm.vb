@@ -44,7 +44,7 @@ Namespace Forms
                 .Margin = New Padding(0, 0, 0, 12)}
             _nav.Controls.Add(brand)
 
-            AddNav("dashboard", "Dashboard", Nothing, Function() New DashboardView())
+            AddNav("dashboard", "Dashboard", Nothing, Function() New DashboardView(AddressOf Navigate))
             AddNav("products", "Products", PermissionCodes.Products.View, Function() New ProductsView())
             AddNav("categories", "Categories", PermissionCodes.Categories.View, Function() New CategoriesView())
             AddNav("customers", "Customers", PermissionCodes.Customers.View, Function() New CustomersView())

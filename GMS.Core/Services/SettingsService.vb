@@ -13,6 +13,7 @@ Namespace Services
         Public Const CurrencyCode As String = "company.currency"
         Public Const DefaultTaxRatePercent As String = "tax.defaultRatePercent"
         Public Const LowStockScanEnabled As String = "inventory.lowStockScanEnabled"
+        Public Const TimeZone As String = "system.timezone"
 
         Private Sub New()
         End Sub

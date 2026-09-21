@@ -17,9 +17,14 @@
         <input asp-for="CurrencyCode" class="form-control" placeholder="USD" />
     </div>
     <div class="col-md-6">
+        <label asp-for="TimeZone" class="form-label">Time zone</label>
+        <input asp-for="TimeZone" class="form-control" placeholder="UTC" />
+    </div>
+    <div class="col-md-6">
         <label asp-for="DefaultTaxRatePercent" class="form-label">Default tax rate (%)</label>
         <input asp-for="DefaultTaxRatePercent" type="number" step="0.01" class="form-control" />
     </div>
+    <div class="col-md-6"></div>
     <div class="col-12 form-check ms-2">
         <input asp-for="LowStockScanEnabled" class="form-check-input" />
         <label asp-for="LowStockScanEnabled" class="form-check-label">Raise low-stock alerts automatically</label>

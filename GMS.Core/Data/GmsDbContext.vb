@@ -16,6 +16,8 @@ Namespace Data
             MyBase.New(options)
         End Sub
 
+        Public Property Organizations As DbSet(Of Organization)
+        Public Property Subscriptions As DbSet(Of Subscription)
         Public Property Roles As DbSet(Of Role)
         Public Property Permissions As DbSet(Of Permission)
         Public Property RolePermissions As DbSet(Of RolePermission)
@@ -38,6 +40,19 @@ Namespace Data
         End Sub
 
         Protected Overrides Sub OnModelCreating(b As ModelBuilder)
+            ' Organization relationships
+            b.Entity(Of Organization)().HasMany(Function(o) o.Users).WithOne(Function(u) u.Organization).HasForeignKey(Function(u) u.OrganizationId).OnDelete(DeleteBehavior.Cascade)
+            b.Entity(Of Organization)().HasMany(Function(o) o.Products).WithOne(Function(p) p.Organization).HasForeignKey(Function(p) p.OrganizationId).OnDelete(DeleteBehavior.Cascade)
+            b.Entity(Of Organization)().HasMany(Function(o) o.Categories).WithOne(Function(c) c.Organization).HasForeignKey(Function(c) c.OrganizationId).OnDelete(DeleteBehavior.Cascade)
+            b.Entity(Of Organization)().HasMany(Function(o) o.Suppliers).WithOne(Function(s) s.Organization).HasForeignKey(Function(s) s.OrganizationId).OnDelete(DeleteBehavior.Cascade)
+            b.Entity(Of Organization)().HasMany(Function(o) o.Customers).WithOne(Function(c) c.Organization).HasForeignKey(Function(c) c.OrganizationId).OnDelete(DeleteBehavior.Cascade)
+            b.Entity(Of Organization)().HasMany(Function(o) o.Transactions).WithOne(Function(t) t.Organization).HasForeignKey(Function(t) t.OrganizationId).OnDelete(DeleteBehavior.Cascade)
+            b.Entity(Of Organization)().HasMany(Function(o) o.StockMovements).WithOne(Function(m) m.Organization).HasForeignKey(Function(m) m.OrganizationId).OnDelete(DeleteBehavior.Cascade)
+            b.Entity(Of Organization)().HasMany(Function(o) o.Notifications).WithOne(Function(n) n.Organization).HasForeignKey(Function(n) n.OrganizationId).OnDelete(DeleteBehavior.Cascade)
+            b.Entity(Of Organization)().HasMany(Function(o) o.AppSettings).WithOne(Function(s) s.Organization).HasForeignKey(Function(s) s.OrganizationId).OnDelete(DeleteBehavior.Cascade)
+            b.Entity(Of Organization)().HasMany(Function(o) o.AuditEntries).WithOne(Function(a) a.Organization).HasForeignKey(Function(a) a.OrganizationId).OnDelete(DeleteBehavior.Cascade)
+            b.Entity(Of Organization)().HasOne(Function(o) o.Subscription).WithOne(Function(s) s.Organization).HasForeignKey(Of Subscription)(Function(s) s.OrganizationId).OnDelete(DeleteBehavior.Cascade)
+
             b.Entity(Of RolePermission)().HasKey(Function(rp) New With {rp.RoleId, rp.PermissionId})
 
             b.Entity(Of RolePermission)().
@@ -50,6 +65,9 @@ Namespace Data
             b.Entity(Of User)().
                 HasOne(Function(u) u.Role).WithMany(Function(r) r.Users).
                 HasForeignKey(Function(u) u.RoleId).OnDelete(DeleteBehavior.Restrict)
+            b.Entity(Of User)().
+                HasOne(Function(u) u.Organization).WithMany(Function(o) o.Users).
+                HasForeignKey(Function(u) u.OrganizationId).OnDelete(DeleteBehavior.Cascade)
 
             b.Entity(Of Category)().
                 HasOne(Function(c) c.ParentCategory).WithMany(Function(c) c.Children).

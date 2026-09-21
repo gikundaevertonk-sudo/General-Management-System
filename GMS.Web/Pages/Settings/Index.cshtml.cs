@@ -12,6 +12,7 @@ public class IndexModel(SettingsService settings) : PageModel
     [BindProperty] public string CurrencyCode { get; set; } = "";
     [BindProperty] public decimal DefaultTaxRatePercent { get; set; }
     [BindProperty] public bool LowStockScanEnabled { get; set; }
+    [BindProperty] public string TimeZone { get; set; } = "";
     public string? Error { get; private set; }
 
     public void OnGet() => Load();
@@ -24,6 +25,7 @@ public class IndexModel(SettingsService settings) : PageModel
             settings.SetValue(SettingKeys.CurrencyCode, CurrencyCode),
             settings.SetValue(SettingKeys.DefaultTaxRatePercent, DefaultTaxRatePercent.ToString("0.####")),
             settings.SetValue(SettingKeys.LowStockScanEnabled, LowStockScanEnabled ? "true" : "false"),
+            settings.SetValue(SettingKeys.TimeZone, TimeZone),
         };
         var failed = results.FirstOrDefault(r => r.Failed);
         if (failed is not null) { Error = failed.ErrorMessage; return Page(); }
@@ -38,5 +40,6 @@ public class IndexModel(SettingsService settings) : PageModel
         CurrencyCode = settings.GetString(SettingKeys.CurrencyCode, "USD");
         DefaultTaxRatePercent = settings.GetDecimal(SettingKeys.DefaultTaxRatePercent, 0);
         LowStockScanEnabled = settings.GetBool(SettingKeys.LowStockScanEnabled, true);
+        TimeZone = settings.GetString(SettingKeys.TimeZone, "UTC");
     }
 }

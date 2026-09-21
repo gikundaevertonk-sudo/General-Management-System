@@ -8,12 +8,39 @@ body { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; }
 .table > :not(caption) > * > * { padding: .5rem .6rem; }
 .table thead th { background: #f9fafb; font-weight: 600; white-space: nowrap; }
 
-.navbar .nav-link { padding-left: .75rem; padding-right: .75rem; }
-.navbar-dark .btn-link.nav-link { color: rgba(255,255,255,.75); text-decoration: none; }
-.navbar-dark .btn-link.nav-link:hover { color: #fff; }
+.topbar { background: #111827; height: 48px; }
+.topbar .navbar-brand { color: #fff; }
+
+/* Bootstrap forces .offcanvas-md's background to transparent !important at md+
+   widths so it can act as a static sidebar there; override it back. */
+.sidebar { width: 220px; background: #111827 !important; flex-shrink: 0; }
+@media (min-width: 768px) {
+    .sidebar { position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+}
+@media (max-width: 767.98px) {
+    #sidebar { --bs-offcanvas-width: 260px; }
+}
+
+.sidebar-brand { color: #fff; font-weight: 600; font-size: 1.15rem; padding: 1rem 1rem .5rem; }
+.sidebar-nav { padding: .5rem 0; }
+.sidebar-nav .nav-link { color: #d1d5db; padding: .55rem 1rem; border-radius: 0; }
+.sidebar-nav .nav-link:hover { background: #1f2937; color: #fff; }
+.sidebar-nav .nav-link.active { background: #1f2937; color: #fff; font-weight: 600; }
+
+.sidebar-footer { border-top: 1px solid #1f2937; padding: .85rem 1rem; }
+.sidebar-footer .sidebar-link, .sidebar-footer .btn-link { color: #93c5fd; text-decoration: none; display: block; padding: .3rem 0; font-size: .85rem; }
+.sidebar-footer .sidebar-link.active, .sidebar-footer .sidebar-link:hover { color: #fff; }
+.sidebar-footer .sidebar-user { color: #9ca3af; font-size: .8rem; margin: .35rem 0; }
+
+.main-content { min-width: 0; }
 
 .page-head { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
 .page-head h1 { font-size: 1.4rem; margin: 0; }
 
 .low-stock { color: #b45309; font-weight: 600; }
 .muted { color: #6b7280; }
+
+.module-btn { color: inherit; transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease; }
+.module-btn:hover { box-shadow: 0 4px 10px rgba(0,0,0,.08); border-color: #2563eb; transform: translateY(-1px); }
+.module-btn .module-title { font-weight: 600; }
+.module-btn .module-desc { color: #6b7280; font-size: .8rem; margin-top: .15rem; }
