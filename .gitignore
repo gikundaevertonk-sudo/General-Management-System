@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# GMS desktop packaging output (installer sources in Setup/ are tracked; their build output is not)
+/GMS-Setup.exe
+/Setup/Output/

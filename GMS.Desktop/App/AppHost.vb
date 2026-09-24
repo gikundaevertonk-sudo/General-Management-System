@@ -25,7 +25,15 @@ Namespace App
         Public ReadOnly Property Session As SessionContext
 
         Private Sub New()
+            ' Lowest priority first. appsettings.json is the only one of the three that ships
+            ' with an installed copy: user-secrets live in the developer's own profile and are
+            ' never published, so without the JSON file a packaged build had no way at all to
+            ' be given a connection string and always fell back to the throwaway in-memory
+            ' store. Base path is the executable's folder, not the working directory, so a
+            ' desktop shortcut finds the file.
             Dim config = New ConfigurationBuilder().
+                SetBasePath(AppContext.BaseDirectory).
+                AddJsonFile("appsettings.json", optional:=True, reloadOnChange:=False).
                 AddUserSecrets(Of AppHost)(optional:=True).
                 AddEnvironmentVariables().
                 Build()
@@ -57,6 +65,16 @@ Namespace App
         Public ReadOnly Property Services As IServiceProvider
             Get
                 Return _scope.ServiceProvider
+            End Get
+        End Property
+
+        ''' <summary>
+        ''' False when no connection string was found and the app is running entirely in
+        ''' memory, where everything entered is discarded when the process exits.
+        ''' </summary>
+        Public ReadOnly Property UsingDatabase As Boolean
+            Get
+                Return _usingDatabase
             End Get
         End Property
 

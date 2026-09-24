@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Product
+    Id="*"
+    Name="General Management System"
+    Language="1033"
+    Version="1.0.0.0"
+    Manufacturer="GMS"
+    UpgradeCode="12345678-1234-1234-1234-123456789abc">
+
+    <Package
+      InstallerVersion="200"
+      Compressed="yes"
+      InstallScope="perMachine"
+      Description="General Management System - Multi-Tenant Business Management" />
+
+    <StandardDirectory Id="ProgramFilesFolder">
+      <Directory Id="INSTALLFOLDER" Name="General Management System" />
+    </StandardDirectory>
+
+    <Feature Id="ProductFeature" Title="General Management System" Level="1">
+      <ComponentRef Id="MainApp" Primary="yes" />
+    </Feature>
+
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="MainApp" Guid="*">
+        <File Source="..\publish\GMS.Desktop.exe" />
+      </Component>
+    </DirectoryRef>
+  </Product>
+</Wix>

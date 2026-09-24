@@ -1,5 +1,9 @@
-Imports System.Text
+﻿Imports System.Text
+Imports System.Threading
+Imports System.Threading.Tasks
 Imports Microsoft.EntityFrameworkCore
+Imports GMS.Core.Abstractions
+Imports GMS.Core.Common
 Imports GMS.Core.Models
 
 Namespace Data
@@ -12,19 +16,32 @@ Namespace Data
     Public NotInheritable Class GmsDbContext
         Inherits DbContext
 
-        Private Shared _tenantId As Integer = 1
+        Private ReadOnly _tenantContext As ITenantContext
 
-        Public Sub New(options As DbContextOptions(Of GmsDbContext))
+        Public Sub New(options As DbContextOptions(Of GmsDbContext), tenantContext As ITenantContext)
             MyBase.New(options)
+            _tenantContext = Guard.NotNull(tenantContext)
         End Sub
 
-        Public Shared Sub SetTenantId(tenantId As Integer)
-            _tenantId = tenantId
-        End Sub
-
-        Public Shared Function GetTenantId() As Integer
-            Return _tenantId
-        End Function
+        ''' <summary>
+        ''' The organization every tenant-scoped query and insert is confined to.
+        ''' </summary>
+        ''' <remarks>
+        ''' Read through <see cref="ITenantContext"/> on each access rather than captured once.
+        ''' It must not be cached in a field, and above all must not be Shared: this used to be
+        ''' a static set per request by GMS.Web's TenantContextMiddleware, so two concurrent
+        ''' requests from different organizations raced - one could overwrite the other's tenant
+        ''' mid-request and serve it the wrong organization's rows. ITenantContext is registered
+        ''' scoped in both front ends, so reading it here keeps the value per-request on the web
+        ''' and per-session on the desktop. Reading per access (not in the constructor) also
+        ''' matters for GMS.Desktop, which builds one context for the whole process: the tenant
+        ''' is not known until the user signs in, well after the context is created.
+        ''' </remarks>
+        Private ReadOnly Property CurrentTenantId As Integer
+            Get
+                Return _tenantContext.OrganizationId
+            End Get
+        End Property
 
         Public Property Organizations As DbSet(Of Organization)
         Public Property Subscriptions As DbSet(Of Subscription)
@@ -112,22 +129,62 @@ Namespace Data
             b.Entity(Of AuditEntry)().Property(Function(a) a.ChangesJson).HasColumnType("jsonb")
 
             ' Global query filters for multi-tenancy: automatically filter all tenant-scoped entities
-            b.Entity(Of User)().HasQueryFilter(Function(u) u.OrganizationId = _tenantId)
-            b.Entity(Of Category)().HasQueryFilter(Function(c) c.OrganizationId = _tenantId)
-            b.Entity(Of Product)().HasQueryFilter(Function(p) p.OrganizationId = _tenantId)
-            b.Entity(Of Supplier)().HasQueryFilter(Function(s) s.OrganizationId = _tenantId)
-            b.Entity(Of Customer)().HasQueryFilter(Function(c) c.OrganizationId = _tenantId)
-            b.Entity(Of Transaction)().HasQueryFilter(Function(t) t.OrganizationId = _tenantId)
-            b.Entity(Of StockMovement)().HasQueryFilter(Function(m) m.OrganizationId = _tenantId)
-            b.Entity(Of Notification)().HasQueryFilter(Function(n) n.OrganizationId = _tenantId)
-            b.Entity(Of AppSetting)().HasQueryFilter(Function(s) s.OrganizationId = _tenantId)
-            b.Entity(Of AuditEntry)().HasQueryFilter(Function(a) a.OrganizationId = _tenantId)
+            b.Entity(Of User)().HasQueryFilter(Function(u) u.OrganizationId = CurrentTenantId)
+            b.Entity(Of Category)().HasQueryFilter(Function(c) c.OrganizationId = CurrentTenantId)
+            b.Entity(Of Product)().HasQueryFilter(Function(p) p.OrganizationId = CurrentTenantId)
+            b.Entity(Of Supplier)().HasQueryFilter(Function(s) s.OrganizationId = CurrentTenantId)
+            b.Entity(Of Customer)().HasQueryFilter(Function(c) c.OrganizationId = CurrentTenantId)
+            b.Entity(Of Transaction)().HasQueryFilter(Function(t) t.OrganizationId = CurrentTenantId)
+            b.Entity(Of StockMovement)().HasQueryFilter(Function(m) m.OrganizationId = CurrentTenantId)
+            b.Entity(Of Notification)().HasQueryFilter(Function(n) n.OrganizationId = CurrentTenantId)
+            b.Entity(Of AppSetting)().HasQueryFilter(Function(s) s.OrganizationId = CurrentTenantId)
+            b.Entity(Of AuditEntry)().HasQueryFilter(Function(a) a.OrganizationId = CurrentTenantId)
 
             ' StockMovement.UserId, AuditEntry.UserId and Notification.TargetUserId have no
-            ' navigation property, so EF leaves them as plain integer columns (no FK) — matching
+            ' navigation property, so EF leaves them as plain integer columns (no FK) â€” matching
             ' the schema, where audit/notification rows must outlive a deleted user.
 
             ApplySnakeCaseNames(b)
+        End Sub
+
+        Public Const OrganizationIdProperty As String = "OrganizationId"
+
+        ''' <summary>
+        ''' Stamps the current tenant onto new rows that did not set it themselves, then saves.
+        ''' </summary>
+        ''' <remarks>
+        ''' Every tenant-scoped entity declares its own <c>OrganizationId</c>, and the query
+        ''' filters above are keyed on it â€” but the services that create catalogue, transaction,
+        ''' stock, notification and audit rows never populate it, so it arrives as 0. Against
+        ''' PostgreSQL that breaks the foreign key to <c>organizations</c>; against the in-memory
+        ''' store, which enforces neither foreign keys nor the query filters, it goes unnoticed.
+        ''' Filling it here rather than in each service means a new service cannot forget it.
+        ''' Only an unset (0) value is filled, so a caller that targets a specific organization â€”
+        ''' <c>DataSeeder.SeedBaseline(organizationId)</c> onboarding a new tenant - still wins.
+        ''' </remarks>
+        Public Overrides Function SaveChanges(acceptAllChangesOnSuccess As Boolean) As Integer
+            StampTenantOnNewRows()
+            Return MyBase.SaveChanges(acceptAllChangesOnSuccess)
+        End Function
+
+        Public Overrides Function SaveChangesAsync(acceptAllChangesOnSuccess As Boolean,
+                                                   Optional cancellationToken As CancellationToken = Nothing) As Task(Of Integer)
+            StampTenantOnNewRows()
+            Return MyBase.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken)
+        End Function
+
+        Private Sub StampTenantOnNewRows()
+            ' Named 'tracked', not 'entry': VB is case-insensitive, so a local called 'entry'
+            ' would shadow DbContext.Entry() and fail to compile.
+            For Each tracked In ChangeTracker.Entries()
+                If tracked.State <> EntityState.Added Then Continue For
+
+                Dim prop = tracked.Metadata.FindProperty(OrganizationIdProperty)
+                If prop Is Nothing OrElse prop.ClrType IsNot GetType(Integer) Then Continue For
+
+                Dim current = tracked.Property(OrganizationIdProperty)
+                If CInt(If(current.CurrentValue, 0)) = 0 Then current.CurrentValue = CurrentTenantId
+            Next
         End Sub
 
         ''' <summary>Renames every table and column to snake_case to match the hand-written schema.</summary>

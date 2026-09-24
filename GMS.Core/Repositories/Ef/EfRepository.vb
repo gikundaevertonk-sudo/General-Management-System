@@ -1,4 +1,6 @@
+Imports System.Collections.Generic
 Imports Microsoft.EntityFrameworkCore
+Imports Microsoft.EntityFrameworkCore.ChangeTracking
 Imports GMS.Core.Abstractions
 Imports GMS.Core.Data
 
@@ -36,16 +38,88 @@ Namespace Repositories.Ef
             _set.AddRange(entities)
         End Sub
 
+        ''' <summary>
+        ''' Marks <paramref name="entity"/> modified, tolerating a change tracker that already
+        ''' holds a different instance of the same row.
+        ''' </summary>
+        ''' <remarks>
+        ''' Queries default to <see cref="QueryTrackingBehavior.NoTracking"/>, so every read
+        ''' hands back a fresh, untracked instance — but <c>Add</c> and <c>Attach</c> do track.
+        ''' GMS.Desktop runs the whole application in a single DI scope, so one
+        ''' <see cref="GmsDbContext"/> lives for the entire session and those tracked instances
+        ''' accumulate: the user seeded at start-up, or any row edited earlier in the session.
+        ''' Blindly attaching a second instance with the same primary key throws
+        ''' "another instance with the same key value is already being tracked", so when the
+        ''' tracker already knows the row we copy onto that instance instead of attaching.
+        ''' </remarks>
         Public Sub Update(entity As T) Implements IRepository(Of T).Update
-            Dim entry = _context.Entry(entity)
-            If entry.State = EntityState.Detached Then _set.Attach(entity)
-            entry.State = EntityState.Modified
+            Dim tracked = FindTracked(entity)
+            If tracked IsNot Nothing Then
+                If Not Object.ReferenceEquals(tracked.Entity, entity) Then
+                    tracked.CurrentValues.SetValues(entity)
+                End If
+                tracked.State = EntityState.Modified
+                Return
+            End If
+
+            _set.Attach(entity)
+            _context.Entry(entity).State = EntityState.Modified
         End Sub
 
         Public Sub Remove(entity As T) Implements IRepository(Of T).Remove
-            If _context.Entry(entity).State = EntityState.Detached Then _set.Attach(entity)
+            Dim tracked = FindTracked(entity)
+            If tracked IsNot Nothing Then
+                tracked.State = EntityState.Deleted
+                Return
+            End If
+
+            _set.Attach(entity)
             _set.Remove(entity)
         End Sub
+
+        ''' <summary>
+        ''' The already-tracked entry for the same row as <paramref name="entity"/>, or Nothing.
+        ''' Added entries are skipped: their keys are still store-generated placeholders, so two
+        ''' unsaved rows would both compare equal on a default key.
+        ''' </summary>
+        Private Function FindTracked(entity As T) As EntityEntry(Of T)
+            Dim key = KeyOf(entity)
+            If key Is Nothing Then Return Nothing
+
+            For Each entry In _context.ChangeTracker.Entries(Of T)()
+                If entry.State = EntityState.Detached OrElse entry.State = EntityState.Added Then Continue For
+                Dim other = KeyOf(entry.Entity)
+                If other IsNot Nothing AndAlso String.Equals(other, key, StringComparison.Ordinal) Then
+                    Return entry
+                End If
+            Next
+            Return Nothing
+        End Function
+
+        ''' <summary>
+        ''' The entity's primary key rendered as a comparable string, or Nothing when the key
+        ''' cannot be read without the change tracker (shadow properties) or is unset.
+        ''' </summary>
+        Private Function KeyOf(entity As T) As String
+            Dim entityType = _context.Model.FindEntityType(GetType(T))
+            If entityType Is Nothing Then Return Nothing
+
+            Dim primaryKey = entityType.FindPrimaryKey()
+            If primaryKey Is Nothing Then Return Nothing
+
+            Dim parts As New List(Of String)()
+            For Each prop In primaryKey.Properties
+                ' Reading through PropertyInfo rather than _context.Entry(entity) keeps this
+                ' side-effect free: Entry() on a detached instance can begin tracking it, which
+                ' is the very conflict this helper exists to avoid.
+                If prop.PropertyInfo Is Nothing Then Return Nothing
+                Dim value = prop.PropertyInfo.GetValue(entity)
+                If value Is Nothing Then Return Nothing
+                parts.Add(Convert.ToString(value, Globalization.CultureInfo.InvariantCulture))
+            Next
+
+            Return String.Join(ChrW(31), parts)
+        End Function
     End Class
 
 End Namespace

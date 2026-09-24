@@ -89,19 +89,30 @@ rename (no EF migrations; the schema is hand-owned). The optional seed block in 
 creates the 22 permissions, 3 system roles, the `admin` account and default settings; the app
 also seeds baseline data itself on start-up (idempotent either way).
 
-**Both** `GMS.Web` and `GMS.Desktop` connect to the same Supabase database — set via the
-`ConnectionStrings:Gms` config key, read from user-secrets (dev) or an environment variable
-(`ConnectionStrings__Gms`, deploy):
+**Both** `GMS.Web` and `GMS.Desktop` connect to the same Supabase database via the
+`ConnectionStrings:Gms` config key. Sources, lowest priority to highest:
+
+| Source | Used by |
+|---|---|
+| `appsettings.json` beside the executable | an **installed** copy of GMS.Desktop |
+| user-secrets | developer machines only — never published |
+| `ConnectionStrings__Gms` environment variable | deployment, CI |
 
 ```bash
-dotnet user-secrets set "ConnectionStrings:Gms" "Host=<pooler-host>;Port=5432;Database=postgres;Username=postgres.<project-ref>;Password=<password>;SSL Mode=Require;Trust Server Certificate=true" --project GMS.Web
+dotnet user-secrets set "ConnectionStrings:Gms" "Host=<pooler-host>;Port=5432;Database=postgres;Username=postgres.<project-ref>;Password=<password>;SSL Mode=Require" --project GMS.Web
 dotnet user-secrets set "ConnectionStrings:Gms" "<same string>" --project GMS.Desktop
 ```
 
 Use the **session pooler** host (`aws-<n>-<region>.pooler.supabase.com:5432`, user
 `postgres.<project-ref>`) — Supabase's direct `db.<ref>.supabase.co` host is IPv6-only on most
-plans. When `ConnectionStrings:Gms` is absent, both apps fall back to the in-memory store (and,
-only in that fallback, seed demo data) — useful for a database-free local run.
+plans, and Npgsql cannot parse the `postgresql://…` URI form the dashboard displays. A quick way
+to find the right region: the correct pooler answers a bad password with `28P01`, while every
+other region answers `XX000 … tenant or user not found`.
+
+When `ConnectionStrings:Gms` is absent, both apps fall back to the in-memory store (and, only in
+that fallback, seed demo data) — useful for a database-free local run. `GMS.Desktop` now says so
+with a warning dialog at start-up, because a silent fallback looks exactly like the app losing
+its data and resetting the admin password on every launch.
 
 **Testing against this database:** both apps pick up `ConnectionStrings:Gms` automatically the
 moment it's configured in user-secrets — including a quick "smoke test" console that merely

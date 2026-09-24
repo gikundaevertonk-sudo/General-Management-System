@@ -12,8 +12,15 @@ Namespace App
         ''' <summary>The signed-in principal, or <c>Nothing</c> before sign-in.</summary>
         Public Property Principal As AuthenticatedUser
 
-        ''' <summary>The organization (tenant) ID for the current session.</summary>
-        Public Property TenantId As Integer
+        ''' <summary>
+        ''' The organization (tenant) ID for the current session. Defaults to the default
+        ''' organization so that start-up seeding, which runs before sign-in, is scoped
+        ''' somewhere valid rather than to organization 0.
+        ''' </summary>
+        Public Property TenantId As Integer = DefaultOrganizationId
+
+        ''' <summary>The organization <c>DataSeeder</c> creates for a fresh installation.</summary>
+        Public Const DefaultOrganizationId As Integer = 1
 
         ''' <summary>
         ''' When true every permission check passes and no principal is required.
