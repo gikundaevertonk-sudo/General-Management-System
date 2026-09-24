@@ -66,6 +66,12 @@ Namespace Forms
                 .Font = New Font("Segoe UI", 8.5F)}
             _nav.Controls.Add(who)
 
+            ' Labelled with the theme you would switch to, so it reads as an action.
+            Dim themeToggle = NavLinkButton(ThemeToggleText())
+            AddHandler themeToggle.Click, Sub() DesktopTheme.Toggle()
+            AddHandler DesktopTheme.ThemeChanged, Sub() themeToggle.Text = "   " & ThemeToggleText()
+            _nav.Controls.Add(themeToggle)
+
             Dim changePwd = NavLinkButton("Change password")
             AddHandler changePwd.Click, Sub()
                                             Using f As New ChangePasswordForm(session.Principal.UserId)
@@ -86,8 +92,17 @@ Namespace Forms
             Controls.Add(_content)
             Controls.Add(_nav)
 
+            DesktopTheme.Attach(Me)
+            ' Subscribed after Attach so it runs second: the walker resets the nav buttons to
+            ' their mapped base colours, then this puts the selection highlight back.
+            AddHandler DesktopTheme.ThemeChanged, Sub() RefreshNavColors()
+
             Navigate("dashboard")
         End Sub
+
+        Private Shared Function ThemeToggleText() As String
+            Return If(DesktopTheme.IsDark, "Light mode", "Dark mode")
+        End Function
 
         Private Sub AddNav(key As String, text As String, requiredPermission As String, factory As Func(Of UserControl))
             Dim session = AppHost.Current.Session
@@ -136,10 +151,23 @@ Namespace Forms
             _content.Controls.Add(view)
             _currentKey = key
 
+            ' The view was built after DesktopTheme.Attach walked this form, so it has to be
+            ' themed explicitly or it comes up light inside a dark shell.
+            DesktopTheme.Apply(view)
+
+            RefreshNavColors()
+        End Sub
+
+        ''' <summary>
+        ''' Repaints the sidebar's selected-item highlight. Kept separate from the theme walker
+        ''' because these colours encode state (which page is open), not just appearance, so
+        ''' they have to be recomputed on navigation and again whenever the theme changes.
+        ''' </summary>
+        Private Sub RefreshNavColors()
             For Each b In _navButtons
-                Dim active = CType(b.Tag, NavEntry).Key = key
-                b.BackColor = If(active, UiKit.SidebarHover, UiKit.Sidebar)
-                b.ForeColor = If(active, Color.White, Color.Gainsboro)
+                Dim active = CType(b.Tag, NavEntry).Key = _currentKey
+                b.BackColor = If(active, DesktopTheme.SidebarHoverBack, DesktopTheme.SidebarBack)
+                b.ForeColor = If(active, DesktopTheme.NavTextActive, DesktopTheme.NavTextInactive)
                 b.Font = New Font("Segoe UI", 9.5F, If(active, FontStyle.Bold, FontStyle.Regular))
             Next
         End Sub

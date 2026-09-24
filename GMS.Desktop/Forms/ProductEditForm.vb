@@ -11,6 +11,7 @@ Namespace Forms
 
         Public Sub New(productId As Integer?)
             InitializeComponent()
+            DesktopTheme.Attach(Me)
             _id = productId
             Text = If(productId Is Nothing, "New product", "Edit product")
 

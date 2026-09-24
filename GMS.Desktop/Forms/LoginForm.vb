@@ -11,6 +11,7 @@ Namespace Forms
 
         Public Sub New()
             InitializeComponent()
+            DesktopTheme.Attach(Me)
             txtUser.Text = "admin"
         End Sub
 

@@ -11,6 +11,7 @@ Namespace Forms
 
         Public Sub New(supplierId As Integer?)
             InitializeComponent()
+            DesktopTheme.Attach(Me)
             _id = supplierId
             Text = If(supplierId Is Nothing, "New supplier", "Edit supplier")
             If supplierId.HasValue Then LoadSupplier(supplierId.Value) Else chkActive.Checked = True

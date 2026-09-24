@@ -1,3 +1,5 @@
+Imports GMS.Desktop.App
+
 Namespace Forms
 
     ''' <summary>Prompts for a new password (used for admin password resets).</summary>
@@ -11,6 +13,7 @@ Namespace Forms
 
         Public Sub New()
             InitializeComponent()
+            DesktopTheme.Attach(Me)
         End Sub
 
         Private Sub btnOk_Click(sender As Object, e As EventArgs) Handles btnOk.Click

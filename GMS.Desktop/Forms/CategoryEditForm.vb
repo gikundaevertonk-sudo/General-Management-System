@@ -11,6 +11,7 @@ Namespace Forms
 
         Public Sub New(categoryId As Integer?)
             InitializeComponent()
+            DesktopTheme.Attach(Me)
             _id = categoryId
             Text = If(categoryId Is Nothing, "New category", "Edit category")
             LoadParents()

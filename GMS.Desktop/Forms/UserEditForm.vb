@@ -11,6 +11,7 @@ Namespace Forms
 
         Public Sub New(userId As Integer?)
             InitializeComponent()
+            DesktopTheme.Attach(Me)
             _id = userId
             Text = If(userId Is Nothing, "New user", "Edit user")
 

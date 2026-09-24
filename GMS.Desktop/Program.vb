@@ -14,6 +14,9 @@ Namespace Global.GMS.Desktop
             Application.EnableVisualStyles()
             Application.SetCompatibleTextRenderingDefault(False)
 
+            ' Before any form exists, so the first one drawn is already in the right theme.
+            DesktopTheme.Initialise()
+
             Using host = AppHost.Current
                 host.EnsureSeeded()
                 WarnIfDemoMode(host)

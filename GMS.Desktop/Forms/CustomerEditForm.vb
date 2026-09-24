@@ -11,6 +11,7 @@ Namespace Forms
 
         Public Sub New(customerId As Integer?)
             InitializeComponent()
+            DesktopTheme.Attach(Me)
             _id = customerId
             Text = If(customerId Is Nothing, "New customer", "Edit customer")
             If customerId.HasValue Then LoadCustomer(customerId.Value) Else chkActive.Checked = True

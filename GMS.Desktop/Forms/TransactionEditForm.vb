@@ -28,6 +28,7 @@ Namespace Forms
 
         Public Sub New(transactionId As Integer?)
             InitializeComponent()
+            DesktopTheme.Attach(Me)
             grdLines.AutoGenerateColumns = False
             _txnId = transactionId
 

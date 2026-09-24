@@ -11,6 +11,7 @@ Namespace Forms
 
         Public Sub New(productId As Integer)
             InitializeComponent()
+            DesktopTheme.Attach(Me)
             _productId = productId
             cboDirection.SelectedIndex = 0
 
