@@ -1,19 +1,68 @@
 html { font-size: 14px; }
 body { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; }
 
-.card { border: 1px solid #e5e7eb; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+/* ---------------------------------------------------------------------------
+   Theme tokens.
+
+   Bootstrap 5.3 recolours its own components from [data-bs-theme], but the
+   hand-written pieces below (sidebar, topbar, stat cards, module tiles) had
+   their colours hard-coded, so they stayed light. Every custom colour is now a
+   variable defined once per theme, which means a component is styled once and
+   both themes follow. Add a new colour here rather than inlining a hex value.
+   --------------------------------------------------------------------------- */
+:root,
+[data-bs-theme="light"] {
+    --gms-sidebar-bg: #111827;
+    --gms-sidebar-hover: #1f2937;
+    --gms-sidebar-border: #1f2937;
+    --gms-sidebar-text: #d1d5db;
+    --gms-sidebar-link: #93c5fd;
+    --gms-sidebar-user: #9ca3af;
+
+    --gms-card-border: #e5e7eb;
+    --gms-card-shadow: 0 1px 2px rgba(0,0,0,.04);
+    --gms-thead-bg: #f9fafb;
+    --gms-muted: #6b7280;
+    --gms-low-stock: #b45309;
+    --gms-accent: #2563eb;
+    --gms-module-hover-shadow: 0 4px 10px rgba(0,0,0,.08);
+}
+
+[data-bs-theme="dark"] {
+    /* The sidebar is already near-black in light mode. In dark mode the page
+       around it is dark too, so it is lifted slightly instead of dropped,
+       otherwise it disappears into the background entirely. */
+    --gms-sidebar-bg: #0b1220;
+    --gms-sidebar-hover: #1e293b;
+    --gms-sidebar-border: #1e293b;
+    --gms-sidebar-text: #cbd5e1;
+    --gms-sidebar-link: #7dd3fc;
+    --gms-sidebar-user: #94a3b8;
+
+    --gms-card-border: #2b3648;
+    --gms-card-shadow: 0 1px 2px rgba(0,0,0,.35);
+    --gms-thead-bg: #1a2233;
+    --gms-muted: #9aa6b8;
+    /* Amber on a dark background needs to be lighter to stay legible; the
+       light-mode #b45309 fails contrast against a dark card. */
+    --gms-low-stock: #fbbf24;
+    --gms-accent: #60a5fa;
+    --gms-module-hover-shadow: 0 4px 12px rgba(0,0,0,.5);
+}
+
+.card { border: 1px solid var(--gms-card-border); box-shadow: var(--gms-card-shadow); }
 .stat-card .stat-value { font-size: 1.6rem; font-weight: 600; }
-.stat-card .stat-label { color: #6b7280; font-size: .85rem; }
+.stat-card .stat-label { color: var(--gms-muted); font-size: .85rem; }
 
 .table > :not(caption) > * > * { padding: .5rem .6rem; }
-.table thead th { background: #f9fafb; font-weight: 600; white-space: nowrap; }
+.table thead th { background: var(--gms-thead-bg); font-weight: 600; white-space: nowrap; }
 
-.topbar { background: #111827; height: 48px; }
+.topbar { background: var(--gms-sidebar-bg); height: 48px; }
 .topbar .navbar-brand { color: #fff; }
 
 /* Bootstrap forces .offcanvas-md's background to transparent !important at md+
    widths so it can act as a static sidebar there; override it back. */
-.sidebar { width: 220px; background: #111827 !important; flex-shrink: 0; }
+.sidebar { width: 220px; background: var(--gms-sidebar-bg) !important; flex-shrink: 0; }
 @media (min-width: 768px) {
     .sidebar { position: sticky; top: 0; height: 100vh; overflow-y: auto; }
 }
@@ -23,24 +72,46 @@ body { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; }
 
 .sidebar-brand { color: #fff; font-weight: 600; font-size: 1.15rem; padding: 1rem 1rem .5rem; }
 .sidebar-nav { padding: .5rem 0; }
-.sidebar-nav .nav-link { color: #d1d5db; padding: .55rem 1rem; border-radius: 0; }
-.sidebar-nav .nav-link:hover { background: #1f2937; color: #fff; }
-.sidebar-nav .nav-link.active { background: #1f2937; color: #fff; font-weight: 600; }
+.sidebar-nav .nav-link { color: var(--gms-sidebar-text); padding: .55rem 1rem; border-radius: 0; }
+.sidebar-nav .nav-link:hover { background: var(--gms-sidebar-hover); color: #fff; }
+.sidebar-nav .nav-link.active { background: var(--gms-sidebar-hover); color: #fff; font-weight: 600; }
 
-.sidebar-footer { border-top: 1px solid #1f2937; padding: .85rem 1rem; }
-.sidebar-footer .sidebar-link, .sidebar-footer .btn-link { color: #93c5fd; text-decoration: none; display: block; padding: .3rem 0; font-size: .85rem; }
+.sidebar-footer { border-top: 1px solid var(--gms-sidebar-border); padding: .85rem 1rem; }
+.sidebar-footer .sidebar-link, .sidebar-footer .btn-link { color: var(--gms-sidebar-link); text-decoration: none; display: block; padding: .3rem 0; font-size: .85rem; }
 .sidebar-footer .sidebar-link.active, .sidebar-footer .sidebar-link:hover { color: #fff; }
-.sidebar-footer .sidebar-user { color: #9ca3af; font-size: .8rem; margin: .35rem 0; }
+.sidebar-footer .sidebar-user { color: var(--gms-sidebar-user); font-size: .8rem; margin: .35rem 0; }
 
 .main-content { min-width: 0; }
 
 .page-head { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
 .page-head h1 { font-size: 1.4rem; margin: 0; }
 
-.low-stock { color: #b45309; font-weight: 600; }
-.muted { color: #6b7280; }
+.low-stock { color: var(--gms-low-stock); font-weight: 600; }
+.muted { color: var(--gms-muted); }
 
 .module-btn { color: inherit; transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease; }
-.module-btn:hover { box-shadow: 0 4px 10px rgba(0,0,0,.08); border-color: #2563eb; transform: translateY(-1px); }
+.module-btn:hover { box-shadow: var(--gms-module-hover-shadow); border-color: var(--gms-accent); transform: translateY(-1px); }
 .module-btn .module-title { font-weight: 600; }
-.module-btn .module-desc { color: #6b7280; font-size: .8rem; margin-top: .15rem; }
+.module-btn .module-desc { color: var(--gms-muted); font-size: .8rem; margin-top: .15rem; }
+
+/* ---------------------------------------------------------------------------
+   Theme toggle
+   --------------------------------------------------------------------------- */
+.theme-toggle {
+    background: none;
+    border: 0;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+}
+
+/* Show the label for the theme you would switch TO, so the control reads as an
+   action ("Dark mode") rather than a status. */
+[data-bs-theme="light"] .theme-toggle .theme-label-dark { display: inline; }
+[data-bs-theme="light"] .theme-toggle .theme-label-light { display: none; }
+[data-bs-theme="dark"] .theme-toggle .theme-label-dark { display: none; }
+[data-bs-theme="dark"] .theme-toggle .theme-label-light { display: inline; }
+
+/* Signed-out pages have no sidebar, so the toggle sits in the top bar. */
+.topbar .theme-toggle { color: #d1d5db; font-size: .85rem; }
+.topbar .theme-toggle:hover { color: #fff; }

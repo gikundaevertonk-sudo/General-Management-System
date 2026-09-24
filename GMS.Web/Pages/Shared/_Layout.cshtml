@@ -4,6 +4,20 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] · GMS</title>
+    @* Set the theme before the stylesheets are applied, so a dark-mode user
+       never sees a white flash. Must stay inline and in the head: an external
+       script would load too late. Keep the key and attribute in step with
+       wwwroot/js/theme.js. *@
+    <script>
+        (function () {
+            var t;
+            try { t = localStorage.getItem('gms-theme'); } catch (e) { t = null; }
+            if (!t) {
+                t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            }
+            document.documentElement.setAttribute('data-bs-theme', t);
+        })();
+    </script>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
@@ -60,6 +74,10 @@
                         @if (unread > 0) { <span class="badge bg-danger ms-1">@unread</span> }
                     </a>
                     <div class="sidebar-user">@User.Identity!.Name</div>
+                    <button type="button" class="sidebar-link theme-toggle" aria-pressed="false" title="Switch between light and dark">
+                        <span class="theme-label-dark">Dark mode</span>
+                        <span class="theme-label-light">Light mode</span>
+                    </button>
                     <a class="sidebar-link" asp-page="/Account/ChangePassword">Change password</a>
                     <form method="post" asp-page="/Account/Logout">
                         <button type="submit" class="sidebar-link btn btn-link p-0">Sign out</button>
@@ -84,6 +102,12 @@ else
 {
     <div class="topbar d-flex align-items-center px-3">
         <a class="navbar-brand fw-semibold" asp-page="/Index">GMS</a>
+        @* Signed-out pages have no sidebar, so the toggle lives here - the login
+           page is the first thing a dark-mode user sees. *@
+        <button type="button" class="theme-toggle ms-auto" aria-pressed="false" title="Switch between light and dark">
+            <span class="theme-label-dark">Dark mode</span>
+            <span class="theme-label-light">Light mode</span>
+        </button>
     </div>
     <main class="container-fluid px-3 px-lg-4 py-4" style="max-width:1200px;">
         @if (TempData["Flash"] is string flash)
@@ -101,6 +125,7 @@ else
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
     <script src="~/lib/jquery-validation-unobtrusive/dist/jquery.validate.unobtrusive.min.js"></script>
+    <script src="~/js/theme.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
