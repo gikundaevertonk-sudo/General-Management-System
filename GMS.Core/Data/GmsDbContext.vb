@@ -140,6 +140,15 @@ Namespace Data
             b.Entity(Of AppSetting)().HasQueryFilter(Function(s) s.OrganizationId = CurrentTenantId)
             b.Entity(Of AuditEntry)().HasQueryFilter(Function(a) a.OrganizationId = CurrentTenantId)
 
+            ' TransactionLine is the one tenant-scoped table with no organization_id of its own;
+            ' it belongs to a tenant only through its parent transaction, so it filters through
+            ' that. Without this, Repository(Of TransactionLine).Query() returns every
+            ' organization's line items. It also silences EF's warning that Product (filtered)
+            ' is the required end of a relationship with TransactionLine (unfiltered), where a
+            ' filtered-out product can make the owning line behave unpredictably.
+            b.Entity(Of TransactionLine)().HasQueryFilter(
+                Function(l) l.Transaction.OrganizationId = CurrentTenantId)
+
             ' StockMovement.UserId, AuditEntry.UserId and Notification.TargetUserId have no
             ' navigation property, so EF leaves them as plain integer columns (no FK) â€” matching
             ' the schema, where audit/notification rows must outlive a deleted user.
