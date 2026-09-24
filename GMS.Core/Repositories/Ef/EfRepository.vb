@@ -26,6 +26,12 @@ Namespace Repositories.Ef
             Return _set
         End Function
 
+        Public Function QueryAcrossTenants() As IQueryable(Of T) Implements IRepository(Of T).QueryAcrossTenants
+            ' Drops the global query filters declared in GmsDbContext.OnModelCreating, and with
+            ' them the need for a resolvable tenant at all.
+            Return _set.IgnoreQueryFilters()
+        End Function
+
         Public Function List() As IReadOnlyList(Of T) Implements IRepository(Of T).List
             Return _set.ToList()
         End Function

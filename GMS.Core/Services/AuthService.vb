@@ -24,8 +24,10 @@ Namespace Services
                 Return Result(Of AuthenticatedUser).Fail("Enter a username and password.")
             End If
 
+            ' Pre-tenant by definition: nobody is signed in yet, so there is no organization to
+            ' scope to. See IRepository.QueryAcrossTenants.
             Dim users = Uow.Repository(Of User)()
-            Dim user = users.Query().FirstOrDefault(
+            Dim user = users.QueryAcrossTenants().FirstOrDefault(
                 Function(u) u.UserName.ToLower() = userName.Trim().ToLower())
 
             ' Same message whether the user is missing or the password is wrong.
@@ -78,9 +80,13 @@ Namespace Services
                 Return Result(Of AuthenticatedUser).Fail("This organization has been deactivated.")
             End If
 
-            ' Find user by username and organization
+            ' Find user by username and organization. Pre-tenant by definition - the caller is
+            ' establishing which organization it belongs to, so the tenant filter cannot be
+            ' applied yet (it would have nothing to filter on and would throw). Scope is not
+            ' lost: the organization resolved from organizationCode above is matched explicitly
+            ' here, so this can only ever return a user of that one organization.
             Dim users = Uow.Repository(Of User)()
-            Dim user = users.Query().FirstOrDefault(
+            Dim user = users.QueryAcrossTenants().FirstOrDefault(
                 Function(u) u.UserName.ToLower() = userName.Trim().ToLower() AndAlso u.OrganizationId = organization.Id)
 
             ' Same message whether the user is missing or the password is wrong.

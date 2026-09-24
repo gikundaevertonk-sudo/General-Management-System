@@ -29,6 +29,14 @@ Namespace Repositories.InMemory
             End SyncLock
         End Function
 
+        ''' <summary>
+        ''' Identical to <see cref="Query"/>: this store applies no tenant filter in the first
+        ''' place, which is exactly why it cannot be trusted to catch multi-tenancy mistakes.
+        ''' </summary>
+        Public Function QueryAcrossTenants() As IQueryable(Of T) Implements IRepository(Of T).QueryAcrossTenants
+            Return Query()
+        End Function
+
         Public Function List() As IReadOnlyList(Of T) Implements IRepository(Of T).List
             SyncLock _db.SyncRoot
                 Return _items.ToList()

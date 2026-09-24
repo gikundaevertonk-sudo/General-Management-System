@@ -56,6 +56,10 @@ Namespace Repositories.InMemory
                 Return _inner.Query()
             End Function
 
+            Public Function QueryAcrossTenants() As IQueryable(Of T) Implements IRepository(Of T).QueryAcrossTenants
+                Return _inner.QueryAcrossTenants()
+            End Function
+
             Public Function List() As IReadOnlyList(Of T) Implements IRepository(Of T).List
                 Return _inner.List()
             End Function
