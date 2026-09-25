@@ -34,7 +34,7 @@ Namespace Views
             Body = New Panel With {.Dock = DockStyle.Fill, .BackColor = UiKit.CardBack, .Padding = New Padding(1)}
             AddHandler Body.Paint,
                 Sub(s, e)
-                    Using p As New Pen(Color.FromArgb(229, 231, 235))
+                    Using p As New Pen(DesktopTheme.CardBorder)
                         e.Graphics.DrawRectangle(p, 0, 0, Body.Width - 1, Body.Height - 1)
                     End Using
                 End Sub

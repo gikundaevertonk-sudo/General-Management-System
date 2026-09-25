@@ -159,8 +159,18 @@ Namespace App
             End Get
         End Property
 
+        ''' <summary>
+        ''' Border for cards drawn in a Paint handler. The walker cannot reach a colour that only
+        ''' exists inside a Pen, so those handlers have to ask for it.
+        ''' </summary>
+        Public ReadOnly Property CardBorder As Color
+            Get
+                Return If(IsDark, DarkBorder, Color.FromArgb(229, 231, 235))
+            End Get
+        End Property
+
         Private Sub ApplyTo(control As Control)
-            Dim original = _originals.GetValue(control, Function(c) New OriginalColors(c.BackColor, c.ForeColor))
+            Dim original = _originals.GetValue(control, Function(c) New OriginalColors(c))
 
             If _mode = ThemeMode.Light Then
                 control.BackColor = original.Back
@@ -194,11 +204,13 @@ Namespace App
 
             Dim button = TryCast(control, Button)
             If button IsNot Nothing Then
+                ' Mapped from the captured original rather than the button's current value:
+                ' reading the live colour would re-map an already-mapped one on the second
+                ' switch, and would leave light mode with nothing to restore from.
                 button.FlatAppearance.MouseOverBackColor =
-                    If(dark, MapBack(button.FlatAppearance.MouseOverBackColor), button.FlatAppearance.MouseOverBackColor)
+                    If(dark, MapBack(original.ButtonMouseOver), original.ButtonMouseOver)
                 If button.FlatAppearance.BorderSize > 0 Then
-                    button.FlatAppearance.BorderColor =
-                        If(dark, DarkBorder, button.FlatAppearance.BorderColor)
+                    button.FlatAppearance.BorderColor = If(dark, DarkBorder, original.ButtonBorder)
                 End If
                 Return
             End If
@@ -206,19 +218,21 @@ Namespace App
             Dim grid = TryCast(control, DataGridView)
             If grid IsNot Nothing Then
                 ' The grid carries its colours on style objects rather than the control, so the
-                ' generic back/fore swap above misses almost all of it.
-                grid.BackgroundColor = If(dark, DarkPage, original.Back)
-                grid.GridColor = If(dark, DarkBorder, SystemColors.ControlDark)
+                ' generic back/fore swap above misses almost all of it. Each one restores from
+                ' the matching captured property - BackgroundColor is not BackColor, and taking
+                ' the light value from a constant would undo whatever the view had set.
+                grid.BackgroundColor = If(dark, DarkPage, original.GridBackground)
+                grid.GridColor = If(dark, DarkBorder, original.GridLines)
 
-                grid.DefaultCellStyle.BackColor = If(dark, DarkCard, Color.White)
-                grid.DefaultCellStyle.ForeColor = If(dark, DarkText, Color.Black)
+                grid.DefaultCellStyle.BackColor = If(dark, DarkCard, original.GridCellBack)
+                grid.DefaultCellStyle.ForeColor = If(dark, DarkText, original.GridCellFore)
                 grid.DefaultCellStyle.SelectionBackColor =
-                    If(dark, Color.FromArgb(30, 58, 95), Color.FromArgb(219, 234, 254))
-                grid.DefaultCellStyle.SelectionForeColor = If(dark, DarkText, Color.Black)
+                    If(dark, Color.FromArgb(30, 58, 95), original.GridCellSelectionBack)
+                grid.DefaultCellStyle.SelectionForeColor = If(dark, DarkText, original.GridCellSelectionFore)
 
                 grid.ColumnHeadersDefaultCellStyle.BackColor =
-                    If(dark, Color.FromArgb(26, 34, 51), Color.FromArgb(249, 250, 251))
-                grid.ColumnHeadersDefaultCellStyle.ForeColor = If(dark, DarkText, Color.Black)
+                    If(dark, Color.FromArgb(26, 34, 51), original.GridHeaderBack)
+                grid.ColumnHeadersDefaultCellStyle.ForeColor = If(dark, DarkText, original.GridHeaderFore)
                 Return
             End If
         End Sub
@@ -267,13 +281,51 @@ Namespace App
             Return c.ToArgb()
         End Function
 
+        ''' <summary>
+        ''' Every colour dark mode overwrites, captured before it does. Light mode restores from
+        ''' here, so anything the dark branch writes has to be captured here too or it is stuck
+        ''' dark for the rest of the session.
+        ''' </summary>
         Private NotInheritable Class OriginalColors
             Public ReadOnly Back As Color
             Public ReadOnly Fore As Color
 
-            Public Sub New(back As Color, fore As Color)
-                Me.Back = back
-                Me.Fore = fore
+            ' Button. FlatAppearance is not covered by Back/Fore.
+            Public ReadOnly ButtonBorder As Color
+            Public ReadOnly ButtonMouseOver As Color
+
+            ' DataGridView. BackgroundColor is a different property from BackColor, and the cell
+            ' styles are objects hanging off the control rather than properties of it.
+            Public ReadOnly GridBackground As Color
+            Public ReadOnly GridLines As Color
+            Public ReadOnly GridCellBack As Color
+            Public ReadOnly GridCellFore As Color
+            Public ReadOnly GridCellSelectionBack As Color
+            Public ReadOnly GridCellSelectionFore As Color
+            Public ReadOnly GridHeaderBack As Color
+            Public ReadOnly GridHeaderFore As Color
+
+            Public Sub New(control As Control)
+                Back = control.BackColor
+                Fore = control.ForeColor
+
+                Dim button = TryCast(control, Button)
+                If button IsNot Nothing Then
+                    ButtonBorder = button.FlatAppearance.BorderColor
+                    ButtonMouseOver = button.FlatAppearance.MouseOverBackColor
+                End If
+
+                Dim grid = TryCast(control, DataGridView)
+                If grid IsNot Nothing Then
+                    GridBackground = grid.BackgroundColor
+                    GridLines = grid.GridColor
+                    GridCellBack = grid.DefaultCellStyle.BackColor
+                    GridCellFore = grid.DefaultCellStyle.ForeColor
+                    GridCellSelectionBack = grid.DefaultCellStyle.SelectionBackColor
+                    GridCellSelectionFore = grid.DefaultCellStyle.SelectionForeColor
+                    GridHeaderBack = grid.ColumnHeadersDefaultCellStyle.BackColor
+                    GridHeaderFore = grid.ColumnHeadersDefaultCellStyle.ForeColor
+                End If
             End Sub
         End Class
 

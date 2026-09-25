@@ -106,12 +106,16 @@ Namespace Views
                         _activity.DataSource = d.RecentActivity.
                             Select(Function(a) New With {.WhenUtc = a.WhenUtc.ToString("yyyy-MM-dd HH:mm"), a.Summary}).ToList()
                     End Sub)
+
+            ' The cards are rebuilt from scratch here, so the ones the theme walker already knows
+            ' about are gone and their replacements have never been through it.
+            DesktopTheme.Apply(_cards)
         End Sub
 
         Private Shared Function Card(caption As String, value As String, accent As Color) As Control
             Dim p As New Panel With {.Size = New Size(210, 92), .Margin = New Padding(8), .BackColor = Color.White}
             AddHandler p.Paint, Sub(s, e)
-                                    Using pen As New Pen(Color.FromArgb(229, 231, 235))
+                                    Using pen As New Pen(DesktopTheme.CardBorder)
                                         e.Graphics.DrawRectangle(pen, 0, 0, p.Width - 1, p.Height - 1)
                                     End Using
                                     Using b As New SolidBrush(accent)
