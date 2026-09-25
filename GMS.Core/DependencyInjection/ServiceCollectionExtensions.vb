@@ -1,5 +1,6 @@
 Imports System.Runtime.CompilerServices
 Imports Microsoft.EntityFrameworkCore
+Imports Microsoft.Extensions.Caching.Memory
 Imports Microsoft.Extensions.DependencyInjection
 Imports Microsoft.Extensions.DependencyInjection.Extensions
 Imports GMS.Core.Abstractions
@@ -72,6 +73,7 @@ Namespace DependencyInjection
         Private Sub AddCommon(services As IServiceCollection)
             services.TryAddSingleton(Of IClock, SystemClock)()
             services.TryAddSingleton(Of IPasswordHasher)(Function(sp) New Pbkdf2PasswordHasher())
+            services.AddMemoryCache()
 
             services.AddScoped(Of AuditService)()
             services.AddScoped(Of AuthService)()

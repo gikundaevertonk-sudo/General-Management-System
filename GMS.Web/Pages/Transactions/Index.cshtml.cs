@@ -42,10 +42,30 @@ public class IndexModel(TransactionService transactions, CustomerService custome
         var result = transactions.Search(opts, Type, Status);
         if (result.Succeeded) Results = result.Value;
 
-        var cs = customers.Search(new QueryOptions { PageSize = 1000 });
-        if (cs.Succeeded) CustomerNames = cs.Value.Items.ToDictionary(c => c.Id, c => c.Name);
-        var ss = suppliers.Search(new QueryOptions { PageSize = 1000 });
-        if (ss.Succeeded) SupplierNames = ss.Value.Items.ToDictionary(s => s.Id, s => s.Name);
+        // Load names only for customers/suppliers referenced in the displayed transactions
+        var customerIds = Results?.Items.Where(t => t.CustomerId.HasValue).Select(t => t.CustomerId!.Value).Distinct().ToList() ?? [];
+        var supplierIds = Results?.Items.Where(t => t.SupplierId.HasValue).Select(t => t.SupplierId!.Value).Distinct().ToList() ?? [];
+
+        CustomerNames = new Dictionary<int, string>();
+        SupplierNames = new Dictionary<int, string>();
+
+        if (customerIds.Any())
+        {
+            var cs = customers.Search(new QueryOptions { PageSize = customerIds.Count });
+            if (cs.Succeeded)
+            {
+                CustomerNames = cs.Value.Items.Where(c => customerIds.Contains(c.Id)).ToDictionary(c => c.Id, c => c.Name);
+            }
+        }
+
+        if (supplierIds.Any())
+        {
+            var ss = suppliers.Search(new QueryOptions { PageSize = supplierIds.Count });
+            if (ss.Succeeded)
+            {
+                SupplierNames = ss.Value.Items.Where(s => supplierIds.Contains(s.Id)).ToDictionary(s => s.Id, s => s.Name);
+            }
+        }
     }
 
     public string PartyOf(Transaction t) =>

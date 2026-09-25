@@ -4,20 +4,32 @@ Imports GMS.Core.Common
 Imports GMS.Core.Enums
 Imports GMS.Core.Models
 Imports GMS.Core.Security
+Imports Microsoft.Extensions.Caching.Memory
 
 Namespace Services
 
     Public NotInheritable Class CategoryService
         Inherits ServiceBase
 
-        Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, tenantContext As ITenantContext, clock As IClock)
+        Private ReadOnly _cache As IMemoryCache
+
+        Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, tenantContext As ITenantContext, clock As IClock, cache As IMemoryCache)
             MyBase.New(uow, currentUser, tenantContext, clock)
+            _cache = Guard.NotNull(cache)
         End Sub
 
         Public Function List() As Result(Of IReadOnlyList(Of Category))
             If Denied(PermissionCodes.Categories.View) Then Return Forbidden(Of IReadOnlyList(Of Category))()
-            Return Result(Of IReadOnlyList(Of Category)).Ok(
-                Uow.Repository(Of Category)().Query().OrderBy(Function(c) c.Name).ToList())
+
+            Dim cacheKey = $"categories_org_{TenantContext.OrganizationId}"
+            Dim cachedValue As Object = Nothing
+            If _cache.TryGetValue(cacheKey, cachedValue) Then
+                Return Result(Of IReadOnlyList(Of Category)).Ok(CType(cachedValue, IReadOnlyList(Of Category)))
+            End If
+
+            Dim categories As IReadOnlyList(Of Category) = Uow.Repository(Of Category)().Query().OrderBy(Function(c) c.Name).ToList()
+            _cache.Set(cacheKey, categories, TimeSpan.FromMinutes(10))
+            Return Result(Of IReadOnlyList(Of Category)).Ok(categories)
         End Function
 
         Public Function GetById(id As Integer) As Result(Of Category)
@@ -47,6 +59,7 @@ Namespace Services
             }
             repo.Add(entity)
             Uow.SaveChanges()
+            InvalidateCache()
             Return Result(Of Category).Ok(entity)
         End Function
 
@@ -71,6 +84,7 @@ Namespace Services
             entity.UpdatedByUserId = CurrentUser.UserId
             repo.Update(entity)
             Uow.SaveChanges()
+            InvalidateCache()
             Return Result.Ok()
         End Function
 
@@ -89,8 +103,13 @@ Namespace Services
 
             repo.Remove(entity)
             Uow.SaveChanges()
+            InvalidateCache()
             Return Result.Ok()
         End Function
+
+        Private Sub InvalidateCache()
+            _cache.Remove($"categories_org_{TenantContext.OrganizationId}")
+        End Sub
     End Class
 
 End Namespace

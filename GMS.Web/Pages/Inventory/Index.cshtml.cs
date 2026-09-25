@@ -36,7 +36,8 @@ public class IndexModel(InventoryService inventory, ProductService products) : P
 
     private void Load()
     {
-        var ps = products.Search(new QueryOptions { PageSize = 1000, SortBy = "name" });
+        // Load only active products, limited to a reasonable number for the dropdown (100 should be more than enough)
+        var ps = products.Search(new QueryOptions { PageSize = 100, SortBy = "name" }, activeOnly: true);
         if (ps.Succeeded)
             ProductOptions = ps.Value.Items.Select(p => new SelectListItem($"{p.Sku} — {p.Name}", p.Id.ToString())).ToList();
 
