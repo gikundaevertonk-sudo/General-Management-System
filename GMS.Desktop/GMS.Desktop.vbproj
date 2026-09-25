@@ -14,6 +14,10 @@
     <LangVersion>latest</LangVersion>
     <NoWarn>BC42353;WFO1000</NoWarn>
     <UserSecretsId>89471431-978a-4a82-9e1d-bac6bbddcd0e</UserSecretsId>
+    <Version>1.0.1.0</Version>
+    <InformationalVersion>1.0.1</InformationalVersion>
+    <AssemblyVersion>1.0.1.0</AssemblyVersion>
+    <FileVersion>1.0.1.0</FileVersion>
 
     <!-- Publishing configuration for standalone deployment -->
     <SelfContained>true</SelfContained>
