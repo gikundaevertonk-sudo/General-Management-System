@@ -3,11 +3,26 @@
 
 !include "MUI2.nsh"
 
+; Version Information
+!define VERSION "1.0.1.0"
+!define PRODUCT_NAME "General Management System"
+!define PRODUCT_VERSION "1.0.1"
+
 ; Basic Settings
-Name "General Management System"
+Name "${PRODUCT_NAME}"
 OutFile "..\GMS-Setup.exe"
-InstallDir "$PROGRAMFILES\General Management System"
+InstallDir "$PROGRAMFILES\${PRODUCT_NAME}"
 InstallDirRegKey HKLM "Software\GMS" "Install_Dir"
+
+; Version in executable
+VIProductVersion "${VERSION}"
+VIAddVersionKey "ProductName" "${PRODUCT_NAME}"
+VIAddVersionKey "ProductVersion" "${PRODUCT_VERSION}"
+VIAddVersionKey "CompanyName" "GMS"
+VIAddVersionKey "FileDescription" "${PRODUCT_NAME} Installer"
+VIAddVersionKey "FileVersion" "${VERSION}"
+VIAddVersionKey "LegalCopyright" "Copyright (c) 2026"
+VIAddVersionKey "OriginalFilename" "GMS-Setup.exe"
 
 ; Request admin privileges
 RequestExecutionLevel admin
@@ -31,15 +46,16 @@ Section "Install"
   WriteUninstaller "$INSTDIR\Uninstall.exe"
 
   ; Create Start Menu shortcuts
-  CreateDirectory "$SMPROGRAMS\General Management System"
-  CreateShortcut "$SMPROGRAMS\General Management System\General Management System.lnk" "$INSTDIR\GMS.Desktop.exe"
-  CreateShortcut "$SMPROGRAMS\General Management System\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
+  CreateDirectory "$SMPROGRAMS\${PRODUCT_NAME}"
+  CreateShortcut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk" "$INSTDIR\GMS.Desktop.exe"
+  CreateShortcut "$SMPROGRAMS\${PRODUCT_NAME}\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
 
   ; Create Desktop shortcut
-  CreateShortcut "$DESKTOP\General Management System.lnk" "$INSTDIR\GMS.Desktop.exe"
+  CreateShortcut "$DESKTOP\${PRODUCT_NAME}.lnk" "$INSTDIR\GMS.Desktop.exe"
 
   ; Write registry for uninstall
-  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\GMS" "DisplayName" "General Management System"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\GMS" "DisplayName" "${PRODUCT_NAME} v${PRODUCT_VERSION}"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\GMS" "DisplayVersion" "${PRODUCT_VERSION}"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\GMS" "UninstallString" "$INSTDIR\Uninstall.exe"
   WriteRegStr HKLM "Software\GMS" "Install_Dir" "$INSTDIR"
 SectionEnd
@@ -50,8 +66,8 @@ Section "Uninstall"
   RMDir /r "$INSTDIR"
 
   ; Remove shortcuts
-  RMDir /r "$SMPROGRAMS\General Management System"
-  Delete "$DESKTOP\General Management System.lnk"
+  RMDir /r "$SMPROGRAMS\${PRODUCT_NAME}"
+  Delete "$DESKTOP\${PRODUCT_NAME}.lnk"
 
   ; Remove registry
   DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\GMS"
