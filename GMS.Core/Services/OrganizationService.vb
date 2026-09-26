@@ -58,10 +58,23 @@ Namespace Services
 
             subRepo.Add(subscription)
 
-            Dim seeder = New DataSeeder(Uow, New Pbkdf2PasswordHasher(), Clock)
-            seeder.SeedBaseline(org.Id)
-
-            Uow.SaveChanges()
+            ' The organization row is committed by the SaveChanges above, because the store has
+            ' to assign its id before a subscription or a user can reference it. There is no
+            ' transaction spanning the two, so a failure here leaves an organization that exists
+            ' but has no administrator and no settings - one nobody can ever sign in to. That is
+            ' exactly what happened when this ran from the operator console, which belongs to no
+            ' tenant: the seeder's tenant-filtered reads tried to resolve a current tenant and
+            ' threw. Say so plainly rather than letting it surface as a 500 that looks like the
+            ' organization was never created at all.
+            Try
+                Dim seeder = New DataSeeder(Uow, New Pbkdf2PasswordHasher(), Clock)
+                seeder.SeedBaseline(org.Id)
+                Uow.SaveChanges()
+            Catch ex As Exception
+                Return Result(Of Organization).Fail(
+                    $"'{org.Code}' was created but could not be set up, so nobody can sign in to it yet. " &
+                    $"It needs removing from the database by hand. Cause: {ex.Message}")
+            End Try
 
             Return Result(Of Organization).Ok(org)
         End Function

@@ -171,7 +171,13 @@ Namespace Services
             ' the first tenant's "admin" suppress every later tenant's own administrator,
             ' leaving that organization with no way to sign in. Filtered in two steps for the
             ' same EF/VB closure-translation reason described in SeedSettings.
-            Dim namesInOrg = repo.Query().
+            '
+            ' QueryAcrossTenants, not Query: onboarding a new tenant happens before that tenant
+            ' exists to be scoped to, and the caller may have no tenant of its own at all - the
+            ' operator console creating an organization is not acting as any organization. The
+            ' tenant filter would resolve the current tenant to apply itself and throw. Scope is
+            ' not lost, because organizationId is matched explicitly on the next line.
+            Dim namesInOrg = repo.QueryAcrossTenants().
                 Where(Function(u) u.OrganizationId = organizationId).
                 Select(Function(u) u.UserName).
                 ToHashSet(StringComparer.OrdinalIgnoreCase)
@@ -204,7 +210,11 @@ Namespace Services
             ' parameter is what EF fails to translate - it emits the VB closure field name as a
             ' SQL identifier ("syntax error at or near Closure_2_$VB$Local_organizationId").
             ' One round trip instead of five is the happy side effect.
-            Dim existingKeys = repo.Query().
+            '
+            ' QueryAcrossTenants for the same reason as SeedAdminUser: this runs while a new
+            ' tenant is being created, on behalf of a caller that belongs to no tenant.
+            ' organizationId is matched explicitly below, so nothing is read outside it.
+            Dim existingKeys = repo.QueryAcrossTenants().
                 Where(Function(s) s.OrganizationId = organizationId).
                 Select(Function(s) s.Key).
                 ToHashSet(StringComparer.OrdinalIgnoreCase)
