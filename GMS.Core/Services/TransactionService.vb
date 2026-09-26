@@ -78,7 +78,7 @@ Namespace Services
                 .Type = type,
                 .Status = TransactionStatus.Draft,
                 .TransactionDate = whenUtc,
-                .Notes = If(notes, String.Empty).Trim(),
+                .Notes = BuildNotes(type, partyId, customerName, notes),
                 .CreatedAtUtc = Clock.UtcNow,
                 .CreatedByUserId = CurrentUser.UserId
             }
@@ -200,22 +200,40 @@ Namespace Services
             End Select
         End Function
 
+        ''' <summary>
+        ''' Folds a one-off buyer's name into the notes.
+        ''' </summary>
+        ''' <remarks>
+        ''' The name goes here rather than into a column of its own so that recording a
+        ''' one-off sale needs no change to an existing database. It is free text on a field
+        ''' that is already free text and already shown wherever a transaction is displayed.
+        ''' The trade-off is that it cannot be searched or reported on as a buyer - if that is
+        ''' ever wanted, it becomes a real column and this goes away.
+        ''' </remarks>
+        Private Shared Function BuildNotes(type As TransactionType, partyId As Integer?,
+                                           customerName As String, notes As String) As String
+            Dim body = If(notes, String.Empty).Trim()
+            If type <> TransactionType.Sale OrElse partyId.HasValue Then Return body
+            If String.IsNullOrWhiteSpace(customerName) Then Return body
+
+            Return String.Join(Environment.NewLine,
+                               {$"Sale to: {customerName.Trim()}", body}.
+                               Where(Function(s) Not String.IsNullOrWhiteSpace(s)))
+        End Function
+
         Private Function AssignParty(txn As Transaction, type As TransactionType, partyId As Integer?,
                                      walkInName As String) As String
             Select Case type
                 Case TransactionType.Sale
-                    ' A sale needs a buyer, but not necessarily one on the customer list. Either
-                    ' pick an existing customer or type a name for a one-off; a typed name is
-                    ' recorded on the transaction and creates no customer account.
+                    ' A sale no longer needs a customer. customer_id is already nullable, so a
+                    ' one-off counter sale is simply a sale with nobody attached - it records
+                    ' the money and the stock movement without leaving an account behind for
+                    ' someone who will never come back.
                     If partyId.HasValue Then
                         If Uow.Repository(Of Customer)().GetById(partyId.Value) Is Nothing Then Return "The selected customer was not found."
                         txn.CustomerId = partyId
-                        txn.CustomerName = String.Empty
-                    ElseIf Not String.IsNullOrWhiteSpace(walkInName) Then
-                        txn.CustomerId = Nothing
-                        txn.CustomerName = walkInName.Trim()
                     Else
-                        Return "Choose a customer, or type a name for a one-off sale."
+                        txn.CustomerId = Nothing
                     End If
                 Case TransactionType.Purchase
                     If Not partyId.HasValue Then Return "A supplier is required for a purchase."

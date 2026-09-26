@@ -70,7 +70,7 @@ Partial Class TransactionEditForm
         Me.txtWalkIn.Name = "txtWalkIn"
         Me.txtWalkIn.Size = New System.Drawing.Size(150, 23)
         Me.txtWalkIn.TabIndex = 2
-        Me.txtWalkIn.PlaceholderText = "or type a name"
+        Me.txtWalkIn.PlaceholderText = "name (optional)"
         '
         Me.lblDate.AutoSize = True
         Me.lblDate.ForeColor = System.Drawing.Color.FromArgb(107, 114, 128)

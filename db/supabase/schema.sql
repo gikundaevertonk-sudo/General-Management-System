@@ -230,7 +230,6 @@ create table if not exists transactions (
     status integer NOT NULL,
     transaction_date timestamp with time zone NOT NULL,
     customer_id integer,
-    customer_name text,
     supplier_id integer,
     subtotal numeric(18,6) NOT NULL,
     tax_total numeric(18,6) NOT NULL,
@@ -385,15 +384,3 @@ create index if not exists ix_audit_entries_timestamp       on audit_entries (or
 create index if not exists ix_audit_entries_entity          on audit_entries (entity_name, entity_id);
 create index if not exists ix_notifications_target_unread   on notifications (target_user_id, is_read);
 create index if not exists ix_notifications_dedupe          on notifications (dedupe_key);
-
--- ============================================================================
--- Changes to an existing database.
---
--- The CREATE TABLE section above only runs on a database that does not have the
--- table yet, so a column added to an existing install needs its own statement
--- here. These are idempotent and safe to re-run with the rest of the file.
--- ============================================================================
-
--- A sale to a walk-in records the buyer's name on the transaction instead of
--- creating a customer account. Null for sales against a real customer_id.
-alter table transactions add column if not exists customer_name text;

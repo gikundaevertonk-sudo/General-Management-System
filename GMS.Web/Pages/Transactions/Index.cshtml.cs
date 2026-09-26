@@ -71,10 +71,10 @@ public class IndexModel(TransactionService transactions, CustomerService custome
     public string PartyOf(Transaction t) =>
         t.CustomerId is int c ? CustomerNames.GetValueOrDefault(c, "—")
         : t.SupplierId is int s ? SupplierNames.GetValueOrDefault(s, "—")
-        : !string.IsNullOrWhiteSpace(t.CustomerName) ? t.CustomerName
+        : IsWalkIn(t) ? "One-off sale"
         : "—";
 
-    /// <summary>A sale to someone who was never added to the customer list.</summary>
+    /// <summary>A sale with nobody attached: a counter sale, recorded without an account.</summary>
     public static bool IsWalkIn(Transaction t) =>
-        t.CustomerId is null && !string.IsNullOrWhiteSpace(t.CustomerName);
+        t.Type == TransactionType.Sale && t.CustomerId is null;
 }

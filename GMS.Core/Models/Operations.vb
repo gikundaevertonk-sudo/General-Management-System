@@ -19,13 +19,6 @@ Namespace Models
 
         Public Property CustomerId As Integer?
         Public Property Customer As Customer
-        ''' <summary>
-        ''' The buyer's name for a sale to someone who is not on the customer list and is not
-        ''' being added to it - a walk-in. Only meaningful while <see cref="CustomerId"/> is
-        ''' Nothing; the two are alternatives, never both. Kept on the transaction rather than
-        ''' as a customer record precisely so a one-off sale leaves no account behind.
-        ''' </summary>
-        Public Property CustomerName As String = String.Empty
         Public Property SupplierId As Integer?
         Public Property Supplier As Supplier
 

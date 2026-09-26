@@ -56,9 +56,13 @@ Namespace Forms
             txtWalkIn.Visible = _type = TransactionType.Sale
             If _type = TransactionType.Sale Then
                 Dim res = AppHost.Current.Resolve(Of CustomerService)().Search(New QueryOptions With {.PageSize = 1000})
-                cboParty.DataSource = If(res.Succeeded,
-                    res.Value.Items.Select(Function(c) New With {.Value = c.Id, .Text = c.Name}).ToList(),
-                    New List(Of Object)().Select(Function(o) New With {.Value = 0, .Text = ""}).ToList())
+                ' Value 0 is "nobody", and it leads so a counter sale is the default rather
+                ' than something you have to go looking for.
+                Dim choices As New List(Of Object) From {New With {.Value = 0, .Text = "(one-off sale - no customer)"}}
+                If res.Succeeded Then
+                    choices.AddRange(res.Value.Items.Select(Function(c) CObj(New With {.Value = c.Id, .Text = c.Name})))
+                End If
+                cboParty.DataSource = choices
             ElseIf _type = TransactionType.Purchase Then
                 Dim res = AppHost.Current.Resolve(Of SupplierService)().Search(New QueryOptions With {.PageSize = 1000})
                 cboParty.DataSource = If(res.Succeeded,
@@ -80,14 +84,12 @@ Namespace Forms
                 Integer.TryParse(Convert.ToString(cboParty.SelectedValue), pid)
                 If pid > 0 Then
                     partyId = pid
-                ElseIf _type = TransactionType.Sale AndAlso walkIn.Length > 0 Then
-                    ' A one-off sale: the name goes on the transaction and no customer
-                    ' account is created. Purchases still need a real supplier.
+                ElseIf _type = TransactionType.Sale Then
+                    ' A counter sale: recorded with nobody attached. Any typed name rides
+                    ' along in the notes rather than creating a customer account.
                     partyId = Nothing
                 Else
-                    lblError.Text = If(_type = TransactionType.Sale,
-                                       "Choose a customer, or type a name for a one-off sale.",
-                                       "Choose a party first.")
+                    lblError.Text = "Choose a supplier first."
                     Return
                 End If
             End If

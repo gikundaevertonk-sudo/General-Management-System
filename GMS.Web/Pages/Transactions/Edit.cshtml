@@ -39,11 +39,12 @@
                 @if (Model.Type == TransactionType.Sale)
                 {
                     <div class="col-12" id="walkInRow">
-                        <label asp-for="WalkInName" class="form-label">Name for this sale</label>
+                        <label asp-for="WalkInName" class="form-label">Name (optional)</label>
                         <input asp-for="WalkInName" class="form-control" placeholder="e.g. Jane Mwangi" />
                         <div class="form-text">
-                            Recorded on this transaction only. No customer account is created and
-                            they will not appear in the customer list.
+                            Kept with this transaction's notes. No customer account is created and
+                            they will not appear in the customer list. Leave blank to record the
+                            sale with no name at all.
                         </div>
                     </div>
                 }
@@ -122,14 +123,6 @@ else
                     <dt class="col-4 muted">Type</dt><dd class="col-8">@t.Type</dd>
                     <dt class="col-4 muted">Status</dt><dd class="col-8">@t.Status</dd>
                     <dt class="col-4 muted">Date</dt><dd class="col-8">@t.TransactionDate.ToString("yyyy-MM-dd")</dd>
-                    @if (!string.IsNullOrWhiteSpace(t.CustomerName))
-                    {
-                        <dt class="col-4 muted">Customer</dt>
-                        <dd class="col-8">
-                            @t.CustomerName
-                            <span class="badge bg-secondary ms-1" title="Not on the customer list">one-off</span>
-                        </dd>
-                    }
                     <dt class="col-4 muted">Notes</dt><dd class="col-8">@(string.IsNullOrWhiteSpace(t.Notes) ? "—" : t.Notes)</dd>
                 </dl>
             </div>
