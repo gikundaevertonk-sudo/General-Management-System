@@ -170,6 +170,23 @@ Namespace App
         End Property
 
         Private Sub ApplyTo(control As Control)
+            ' Two passes, and the order matters. A control with no explicit BackColor - a
+            ' Label on a card, say - reports its parent's colour, so capturing as we recolour
+            ' would record the parent's already-mapped dark value as the child's "original".
+            ' Mapping that a second time lands it on the Case Else fallback and the child ends
+            ' up a different shade from the card it sits on.
+            CaptureTree(control)
+            ApplyTree(control)
+        End Sub
+
+        Private Sub CaptureTree(control As Control)
+            _originals.GetValue(control, Function(c) New OriginalColors(c))
+            For Each child As Control In control.Controls
+                CaptureTree(child)
+            Next
+        End Sub
+
+        Private Sub ApplyTree(control As Control)
             Dim original = _originals.GetValue(control, Function(c) New OriginalColors(c))
 
             If _mode = ThemeMode.Light Then
@@ -183,7 +200,7 @@ Namespace App
             ApplyPerType(control, original)
 
             For Each child As Control In control.Controls
-                ApplyTo(child)
+                ApplyTree(child)
             Next
         End Sub
 

@@ -113,7 +113,12 @@ Namespace Views
         End Sub
 
         Private Shared Function Card(caption As String, value As String, accent As Color) As Control
-            Dim p As New Panel With {.Size = New Size(210, 92), .Margin = New Padding(8), .BackColor = Color.White}
+            ' Both colours are set explicitly. The theme walker restores light mode from the
+            ' colours a control had when it was first seen, and an unset ForeColor reports
+            ' whatever the parent currently has - so a card rebuilt by Reload while dark mode
+            ' is on would capture dark grey as its "original" and keep it on the way back.
+            Dim p As New Panel With {.Size = New Size(210, 92), .Margin = New Padding(8),
+                                     .BackColor = Color.White, .ForeColor = SystemColors.ControlText}
             AddHandler p.Paint, Sub(s, e)
                                     Using pen As New Pen(DesktopTheme.CardBorder)
                                         e.Graphics.DrawRectangle(pen, 0, 0, p.Width - 1, p.Height - 1)
