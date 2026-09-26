@@ -15,6 +15,25 @@ Namespace App
         Public ReadOnly CardBack As Color = Color.White
         Public ReadOnly MutedText As Color = Color.FromArgb(107, 114, 128)
 
+        Private _appIcon As Icon
+
+        ''' <summary>
+        ''' The window icon, for the title bar, the taskbar and Alt-Tab. Loaded from the
+        ''' embedded copy rather than the executable so every size in the file is available
+        ''' and Windows can pick the right one; ExtractAssociatedIcon would only ever give
+        ''' back a single 32px frame to stretch.
+        ''' </summary>
+        Public ReadOnly Property AppIcon As Icon
+            Get
+                If _appIcon Is Nothing Then
+                    Using stream = GetType(UiKit).Assembly.GetManifestResourceStream("gms.ico")
+                        If stream IsNot Nothing Then _appIcon = New Icon(stream)
+                    End Using
+                End If
+                Return _appIcon
+            End Get
+        End Property
+
         Public Function H1(text As String) As Label
             Return New Label With {
                 .Text = text, .AutoSize = True, .Font = New Font("Segoe UI Semibold", 16.0F),

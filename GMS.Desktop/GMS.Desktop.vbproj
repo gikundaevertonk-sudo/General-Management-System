@@ -35,6 +35,13 @@
     <Import Include="System.Windows.Forms" />
   </ItemGroup>
 
+  <!-- ApplicationIcon only writes the Win32 resource the shell reads. Form.Icon
+       ignores that and falls back to the built-in WinForms icon, so the same file
+       is embedded for UiKit.AppIcon to hand to each window. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\assets\gms.ico" LogicalName="gms.ico" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.4" />
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.4" />

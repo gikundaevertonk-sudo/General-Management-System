@@ -29,6 +29,7 @@ Namespace Forms
         Public Sub New(transactionId As Integer?)
             InitializeComponent()
             DesktopTheme.Attach(Me)
+            Icon = UiKit.AppIcon
             grdLines.AutoGenerateColumns = False
             _txnId = transactionId
 

@@ -11,6 +11,7 @@ Namespace Forms
         Public Sub New(userId As Integer, Optional forced As Boolean = False)
             InitializeComponent()
             DesktopTheme.Attach(Me)
+            Icon = UiKit.AppIcon
             _userId = userId
 
             If forced Then

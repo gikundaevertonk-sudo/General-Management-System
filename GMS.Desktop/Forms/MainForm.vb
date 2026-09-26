@@ -21,6 +21,7 @@ Namespace Forms
             Dim session = AppHost.Current.Session
 
             Text = "General Management System"
+            Icon = UiKit.AppIcon
             StartPosition = FormStartPosition.CenterScreen
             MinimumSize = New Size(1000, 640)
             WindowState = FormWindowState.Maximized

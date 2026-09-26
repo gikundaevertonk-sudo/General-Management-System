@@ -12,6 +12,7 @@ Namespace Forms
         Public Sub New()
             InitializeComponent()
             DesktopTheme.Attach(Me)
+            Icon = UiKit.AppIcon
             txtUser.Text = "admin"
         End Sub
 
