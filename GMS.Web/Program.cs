@@ -13,6 +13,8 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizeFolder("/");
     options.Conventions.AllowAnonymousToFolder("/Account");
     options.Conventions.AllowAnonymousToPage("/Error");
+    // Customers need the installer before they have an account to sign in with.
+    options.Conventions.AllowAnonymousToPage("/Download");
     // No AllowAnonymousToFolder("/Platform") here, however tempting. That adds
     // IAllowAnonymous to the endpoint metadata, which the authorization middleware honours
     // ahead of any [Authorize] on the page - it would switch the console's own protection

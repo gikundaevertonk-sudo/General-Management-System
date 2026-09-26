@@ -1,0 +1,33 @@
+{
+  "//": [
+    "Download page contents. Edited by hand when you publish a release - the page renders",
+    "whatever is in here, so adding a version needs no code change and no redeploy of the app",
+    "beyond this file.",
+    "",
+    "Newest first: the first entry is presented as the current download and the rest as",
+    "previous versions.",
+    "",
+    "'url' may be either an absolute URL (Supabase Storage, GitHub Releases, a CDN) or a path",
+    "relative to the site, in which case the file is served from wwwroot. Installers are large",
+    "and must not go into git; if you use the relative form, copy the file to",
+    "GMS.Web/wwwroot/releases/ on the server rather than committing it.",
+    "",
+    "'sha256' is optional but worth filling in. It is what lets a customer confirm the file",
+    "they downloaded is the one you published:  Get-FileHash .\\GMS-Setup.exe -Algorithm SHA256"
+  ],
+  "product": "General Management System",
+  "releases": [
+    {
+      "version": "1.0.2",
+      "released": "2026-09-26",
+      "url": "/releases/GMS-Setup-1.0.2.exe",
+      "sizeBytes": 57780379,
+      "sha256": "055a091ecc6a0189293a8e2aa23d36d3b3c300837f41e4b99b3815f8b94051b1",
+      "notes": [
+        "Switching back to light mode now restores every colour, not just some",
+        "The application icon now appears on windows, the taskbar and Alt-Tab",
+        "Signing in no longer locks the account for 15 minutes after five wrong attempts"
+      ]
+    }
+  ]
+}

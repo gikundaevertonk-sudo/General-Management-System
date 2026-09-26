@@ -16,4 +16,13 @@
     <ProjectReference Include="..\GMS.Core\GMS.Core.vbproj" />
   </ItemGroup>
 
+  <!-- Read at request time by the download page so publishing a release is editing this
+       file, not redeploying the site. Update, not Include: the Web SDK already globs .json
+       as Content, and adding it again is a duplicate-item error. -->
+  <ItemGroup>
+    <Content Update="releases.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

@@ -1,0 +1,88 @@
+@page
+@model GMS.Web.Pages.DownloadModel
+@{ ViewData["Title"] = "Download"; }
+
+<div style="max-width:760px;">
+    <h1 class="mb-1">Download GMS</h1>
+    <p class="muted mb-4">The desktop application for Windows 10 and 11. No separate .NET install is needed.</p>
+
+    @if (Model.Error is not null)
+    {
+        <div class="alert alert-secondary">@Model.Error</div>
+    }
+
+    @if (Model.Latest is { } latest)
+    {
+        <div class="card mb-4">
+            <div class="card-body p-4">
+                <div class="d-flex flex-wrap gap-3 align-items-start justify-content-between mb-3">
+                    <div>
+                        <h2 class="h4 mb-1">Version @latest.Version</h2>
+                        <div class="muted small">
+                            Released @latest.ReleasedDisplay@(latest.SizeDisplay.Length > 0 ? " · " + latest.SizeDisplay : "")
+                        </div>
+                    </div>
+                    @if (latest.HasFile)
+                    {
+                        <a class="btn btn-primary" href="@latest.Url" download>Download for Windows</a>
+                    }
+                </div>
+
+                @if (latest.Notes.Count > 0)
+                {
+                    <ul class="mb-0 small">
+                        @foreach (var n in latest.Notes) { <li>@n</li> }
+                    </ul>
+                }
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(latest.Sha256))
+        {
+            <p class="muted small">
+                To confirm the file is the one we published, run this in PowerShell and check it
+                matches:<br />
+                <code>Get-FileHash .\GMS-Setup.exe -Algorithm SHA256</code><br />
+                <code class="text-break">@latest.Sha256</code>
+            </p>
+        }
+    }
+
+    @if (Model.Previous.Any())
+    {
+        <h2 class="h5 mt-5 mb-2">Previous versions</h2>
+        <p class="muted small">Kept available if you need to go back to an earlier build.</p>
+        <div class="card"><div class="table-responsive">
+            <table class="table table-sm mb-0 align-middle">
+                <thead><tr><th>Version</th><th>Released</th><th>Size</th><th class="text-end"></th></tr></thead>
+                <tbody>
+                @foreach (var r in Model.Previous)
+                {
+                    <tr>
+                        <td class="fw-semibold">@r.Version</td>
+                        <td class="small">@r.ReleasedDisplay</td>
+                        <td class="small">@r.SizeDisplay</td>
+                        <td class="text-end">
+                            @if (r.HasFile)
+                            {
+                                <a class="btn btn-sm btn-link py-0" href="@r.Url" download>Download</a>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div></div>
+    }
+
+    <h2 class="h5 mt-5 mb-2">Installing</h2>
+    <ol class="small">
+        <li>Run <code>GMS-Setup.exe</code> and accept the Windows prompt for administrator rights.</li>
+        <li>Launch <strong>General Management System</strong> from the Start menu or the desktop shortcut.</li>
+        <li>Sign in with the organisation code, username and temporary password you were given.</li>
+    </ol>
+    <p class="muted small">
+        Without a database configured the application runs in demo mode and tells you so on start-up:
+        everything you enter is held in memory and lost when you close the window.
+    </p>
+</div>
