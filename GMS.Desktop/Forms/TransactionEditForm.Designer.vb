@@ -43,6 +43,7 @@ Partial Class TransactionEditForm
         Me.lblTotals = New System.Windows.Forms.Label()
         Me.lblError = New System.Windows.Forms.Label()
         Me.btnConfirm = New System.Windows.Forms.Button()
+        Me.btnCancelTxn = New System.Windows.Forms.Button()
         Me.btnClose = New System.Windows.Forms.Button()
         CType(Me.numQty, System.ComponentModel.ISupportInitialize).BeginInit()
         CType(Me.numPrice, System.ComponentModel.ISupportInitialize).BeginInit()
@@ -226,6 +227,14 @@ Partial Class TransactionEditForm
         Me.btnConfirm.Text = "Confirm"
         Me.btnConfirm.UseVisualStyleBackColor = False
         '
+        Me.btnCancelTxn.Anchor = CType((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
+        Me.btnCancelTxn.Location = New System.Drawing.Point(446, 576)
+        Me.btnCancelTxn.Name = "btnCancelTxn"
+        Me.btnCancelTxn.Size = New System.Drawing.Size(100, 34)
+        Me.btnCancelTxn.TabIndex = 19
+        Me.btnCancelTxn.Text = "Cancel sale"
+        Me.btnCancelTxn.UseVisualStyleBackColor = True
+        '
         Me.btnClose.Anchor = CType((System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.btnClose.Location = New System.Drawing.Point(668, 576)
         Me.btnClose.Name = "btnClose"
@@ -241,6 +250,7 @@ Partial Class TransactionEditForm
         Me.BackColor = System.Drawing.Color.White
         Me.ClientSize = New System.Drawing.Size(780, 624)
         Me.Controls.Add(Me.btnClose)
+        Me.Controls.Add(Me.btnCancelTxn)
         Me.Controls.Add(Me.btnConfirm)
         Me.Controls.Add(Me.lblError)
         Me.Controls.Add(Me.lblTotals)
@@ -297,6 +307,9 @@ Partial Class TransactionEditForm
     Friend WithEvents lblTotals As System.Windows.Forms.Label
     Friend WithEvents lblError As System.Windows.Forms.Label
     Friend WithEvents btnConfirm As System.Windows.Forms.Button
+    ''' <summary>Cancels the transaction itself. Not to be confused with btnClose, which
+    ''' only shuts the window - the two sat one word apart and needed different names.</summary>
+    Friend WithEvents btnCancelTxn As System.Windows.Forms.Button
     Friend WithEvents btnClose As System.Windows.Forms.Button
 End Class
 

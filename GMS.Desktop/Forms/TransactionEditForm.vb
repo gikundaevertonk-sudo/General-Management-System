@@ -175,6 +175,28 @@ Namespace Forms
             Close()
         End Sub
 
+        Private Sub btnCancelTxn_Click(sender As Object, e As EventArgs) Handles btnCancelTxn.Click
+            lblError.Text = ""
+            If _txnId Is Nothing Then Return
+
+            ' A confirmed transaction has already moved stock, so cancelling it puts that
+            ' stock back. Worth saying out loud before it happens.
+            Dim prompt = If(_status = TransactionStatus.Draft,
+                            "Cancel this transaction? It will be kept as a cancelled record.",
+                            "Cancel this transaction? The stock it posted will be put back.")
+            If Not UiKit.Confirm(Me, prompt) Then Return
+
+            Dim result = AppHost.Current.Resolve(Of TransactionService)().
+                Cancel(_txnId.Value, "Cancelled from desktop")
+            If result.Failed Then
+                lblError.Text = result.ErrorMessage
+                Return
+            End If
+
+            DialogResult = DialogResult.OK
+            Close()
+        End Sub
+
         Private Sub btnClose_Click(sender As Object, e As EventArgs) Handles btnClose.Click
             Close()
         End Sub
@@ -214,6 +236,9 @@ Namespace Forms
                 c.Enabled = started AndAlso isDraft
             Next
             btnConfirm.Enabled = started AndAlso isDraft
+            ' Cancellable while it is a draft and after it is confirmed - only an already
+            ' cancelled one has nothing left to do.
+            btnCancelTxn.Enabled = started AndAlso _status <> TransactionStatus.Cancelled
         End Sub
 
         Private NotInheritable Class LineRow
