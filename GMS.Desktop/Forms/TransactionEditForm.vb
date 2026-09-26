@@ -51,6 +51,9 @@ Namespace Forms
         Private Sub LoadPartyChoices()
             cboParty.DisplayMember = "Text"
             cboParty.ValueMember = "Value"
+            ' Only a sale can be to someone who is not on the list; a purchase needs a real
+            ' supplier, and an adjustment has no party at all.
+            txtWalkIn.Visible = _type = TransactionType.Sale
             If _type = TransactionType.Sale Then
                 Dim res = AppHost.Current.Resolve(Of CustomerService)().Search(New QueryOptions With {.PageSize = 1000})
                 cboParty.DataSource = If(res.Succeeded,
@@ -70,18 +73,27 @@ Namespace Forms
         Private Sub btnStart_Click(sender As Object, e As EventArgs) Handles btnStart.Click
             lblError.Text = ""
             Dim partyId As Integer? = Nothing
+            Dim walkIn = txtWalkIn.Text.Trim()
+
             If _type = TransactionType.Sale OrElse _type = TransactionType.Purchase Then
                 Dim pid = 0
                 Integer.TryParse(Convert.ToString(cboParty.SelectedValue), pid)
-                If pid = 0 Then
-                    lblError.Text = "Choose a party first."
+                If pid > 0 Then
+                    partyId = pid
+                ElseIf _type = TransactionType.Sale AndAlso walkIn.Length > 0 Then
+                    ' A one-off sale: the name goes on the transaction and no customer
+                    ' account is created. Purchases still need a real supplier.
+                    partyId = Nothing
+                Else
+                    lblError.Text = If(_type = TransactionType.Sale,
+                                       "Choose a customer, or type a name for a one-off sale.",
+                                       "Choose a party first.")
                     Return
                 End If
-                partyId = pid
             End If
 
             Dim result = AppHost.Current.Resolve(Of TransactionService)().
-                CreateDraft(_type, partyId, dtpDate.Value.Date, txtNotes.Text)
+                CreateDraft(_type, partyId, dtpDate.Value.Date, txtNotes.Text, walkIn)
             If result.Failed Then
                 lblError.Text = result.ErrorMessage
                 Return
@@ -192,6 +204,7 @@ Namespace Forms
 
             btnStart.Visible = Not started
             cboParty.Enabled = Not started AndAlso cboParty.Enabled
+            txtWalkIn.Enabled = Not started
             dtpDate.Enabled = Not started
             txtNotes.Enabled = Not started
 

@@ -21,6 +21,7 @@ Partial Class TransactionEditForm
     Private Sub InitializeComponent()
         Me.lblParty = New System.Windows.Forms.Label()
         Me.cboParty = New System.Windows.Forms.ComboBox()
+        Me.txtWalkIn = New System.Windows.Forms.TextBox()
         Me.lblDate = New System.Windows.Forms.Label()
         Me.dtpDate = New System.Windows.Forms.DateTimePicker()
         Me.lblNotes = New System.Windows.Forms.Label()
@@ -62,6 +63,14 @@ Partial Class TransactionEditForm
         Me.cboParty.Name = "cboParty"
         Me.cboParty.Size = New System.Drawing.Size(320, 23)
         Me.cboParty.TabIndex = 1
+        '
+        ' Sits beside the party list rather than on its own row: the form is fixed-layout and
+        ' a new row would mean shifting every control below it.
+        Me.txtWalkIn.Location = New System.Drawing.Point(450, 15)
+        Me.txtWalkIn.Name = "txtWalkIn"
+        Me.txtWalkIn.Size = New System.Drawing.Size(150, 23)
+        Me.txtWalkIn.TabIndex = 2
+        Me.txtWalkIn.PlaceholderText = "or type a name"
         '
         Me.lblDate.AutoSize = True
         Me.lblDate.ForeColor = System.Drawing.Color.FromArgb(107, 114, 128)
@@ -248,6 +257,7 @@ Partial Class TransactionEditForm
         Me.Controls.Add(Me.lblNotes)
         Me.Controls.Add(Me.dtpDate)
         Me.Controls.Add(Me.lblDate)
+        Me.Controls.Add(Me.txtWalkIn)
         Me.Controls.Add(Me.cboParty)
         Me.Controls.Add(Me.lblParty)
         Me.Font = New System.Drawing.Font("Segoe UI", 9.0!)
@@ -265,6 +275,7 @@ Partial Class TransactionEditForm
 
     Friend WithEvents lblParty As System.Windows.Forms.Label
     Friend WithEvents cboParty As System.Windows.Forms.ComboBox
+    Friend WithEvents txtWalkIn As System.Windows.Forms.TextBox
     Friend WithEvents lblDate As System.Windows.Forms.Label
     Friend WithEvents dtpDate As System.Windows.Forms.DateTimePicker
     Friend WithEvents lblNotes As System.Windows.Forms.Label

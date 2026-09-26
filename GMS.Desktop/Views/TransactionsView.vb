@@ -136,6 +136,9 @@ Namespace Views
                                           suppName As Dictionary(Of Integer, String)) As String
             If t.CustomerId.HasValue Then Return custName.GetValueOrDefault(t.CustomerId.Value, "—")
             If t.SupplierId.HasValue Then Return suppName.GetValueOrDefault(t.SupplierId.Value, "—")
+            ' A one-off sale carries its buyer's name on the transaction, with no customer row
+            ' to look up. Marked so it is not mistaken for an account on the customer list.
+            If Not String.IsNullOrWhiteSpace(t.CustomerName) Then Return $"{t.CustomerName} (one-off)"
             Return "—"
         End Function
 

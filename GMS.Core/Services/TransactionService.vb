@@ -68,7 +68,8 @@ Namespace Services
         End Function
 
         Public Function CreateDraft(type As TransactionType, partyId As Integer?,
-                                    transactionDate As DateTime, notes As String) As Result(Of Transaction)
+                                    transactionDate As DateTime, notes As String,
+                                    Optional customerName As String = Nothing) As Result(Of Transaction)
             If Denied(PermissionCodes.Transactions.Create) Then Return Forbidden(Of Transaction)()
 
             Dim whenUtc = If(transactionDate = Date.MinValue, Clock.UtcNow,
@@ -82,7 +83,7 @@ Namespace Services
                 .CreatedByUserId = CurrentUser.UserId
             }
 
-            Dim partyError = AssignParty(txn, type, partyId)
+            Dim partyError = AssignParty(txn, type, partyId, customerName)
             If partyError IsNot Nothing Then Return Result(Of Transaction).Fail(partyError)
 
             txn.TransactionNumber = NextNumber(type, txn.TransactionDate)
@@ -199,12 +200,23 @@ Namespace Services
             End Select
         End Function
 
-        Private Function AssignParty(txn As Transaction, type As TransactionType, partyId As Integer?) As String
+        Private Function AssignParty(txn As Transaction, type As TransactionType, partyId As Integer?,
+                                     walkInName As String) As String
             Select Case type
                 Case TransactionType.Sale
-                    If Not partyId.HasValue Then Return "A customer is required for a sale."
-                    If Uow.Repository(Of Customer)().GetById(partyId.Value) Is Nothing Then Return "The selected customer was not found."
-                    txn.CustomerId = partyId
+                    ' A sale needs a buyer, but not necessarily one on the customer list. Either
+                    ' pick an existing customer or type a name for a one-off; a typed name is
+                    ' recorded on the transaction and creates no customer account.
+                    If partyId.HasValue Then
+                        If Uow.Repository(Of Customer)().GetById(partyId.Value) Is Nothing Then Return "The selected customer was not found."
+                        txn.CustomerId = partyId
+                        txn.CustomerName = String.Empty
+                    ElseIf Not String.IsNullOrWhiteSpace(walkInName) Then
+                        txn.CustomerId = Nothing
+                        txn.CustomerName = walkInName.Trim()
+                    Else
+                        Return "Choose a customer, or type a name for a one-off sale."
+                    End If
                 Case TransactionType.Purchase
                     If Not partyId.HasValue Then Return "A supplier is required for a purchase."
                     If Uow.Repository(Of Supplier)().GetById(partyId.Value) Is Nothing Then Return "The selected supplier was not found."

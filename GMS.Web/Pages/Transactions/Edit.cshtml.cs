@@ -26,6 +26,7 @@ public class EditModel(
 
     // new-draft form
     [BindProperty] public int PartyId { get; set; }
+    [BindProperty] public string? WalkInName { get; set; }
     [BindProperty] public DateTime TxnDate { get; set; } = DateTime.Today;
     [BindProperty] public string? Notes { get; set; }
 
@@ -55,8 +56,10 @@ public class EditModel(
     public IActionResult OnPostCreate()
     {
         var type = Type ?? TransactionType.Sale;
-        int? party = type is TransactionType.Sale or TransactionType.Purchase ? PartyId : null;
-        var result = transactions.CreateDraft(type, party, TxnDate, Notes ?? "");
+        // PartyId is 0 when the dropdown is left on the one-off option, and the typed name
+        // carries the buyer instead.
+        int? party = type is TransactionType.Sale or TransactionType.Purchase && PartyId > 0 ? PartyId : null;
+        var result = transactions.CreateDraft(type, party, TxnDate, Notes ?? "", WalkInName);
         if (result.Failed) { Error = result.ErrorMessage; LoadLookups(type); return Page(); }
         return RedirectToPage("Edit", new { id = result.Value.Id });
     }

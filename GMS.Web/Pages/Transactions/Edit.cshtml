@@ -20,8 +20,33 @@
             {
                 <div class="col-12">
                     <label class="form-label">@(Model.Type == TransactionType.Sale ? "Customer" : "Supplier")</label>
-                    <select asp-for="PartyId" asp-items="Model.PartyOptions" class="form-select"></select>
+                    @if (Model.Type == TransactionType.Sale)
+                    {
+                        <select asp-for="PartyId" class="form-select" id="partySelect">
+                            <option value="0">One-off sale — type a name below</option>
+                            @foreach (var o in Model.PartyOptions)
+                            {
+                                <option value="@o.Value">@o.Text</option>
+                            }
+                        </select>
+                    }
+                    else
+                    {
+                        <select asp-for="PartyId" asp-items="Model.PartyOptions" class="form-select"></select>
+                    }
                 </div>
+
+                @if (Model.Type == TransactionType.Sale)
+                {
+                    <div class="col-12" id="walkInRow">
+                        <label asp-for="WalkInName" class="form-label">Name for this sale</label>
+                        <input asp-for="WalkInName" class="form-control" placeholder="e.g. Jane Mwangi" />
+                        <div class="form-text">
+                            Recorded on this transaction only. No customer account is created and
+                            they will not appear in the customer list.
+                        </div>
+                    </div>
+                }
             }
             <div class="col-md-6">
                 <label asp-for="TxnDate" class="form-label">Date</label>
@@ -97,6 +122,14 @@ else
                     <dt class="col-4 muted">Type</dt><dd class="col-8">@t.Type</dd>
                     <dt class="col-4 muted">Status</dt><dd class="col-8">@t.Status</dd>
                     <dt class="col-4 muted">Date</dt><dd class="col-8">@t.TransactionDate.ToString("yyyy-MM-dd")</dd>
+                    @if (!string.IsNullOrWhiteSpace(t.CustomerName))
+                    {
+                        <dt class="col-4 muted">Customer</dt>
+                        <dd class="col-8">
+                            @t.CustomerName
+                            <span class="badge bg-secondary ms-1" title="Not on the customer list">one-off</span>
+                        </dd>
+                    }
                     <dt class="col-4 muted">Notes</dt><dd class="col-8">@(string.IsNullOrWhiteSpace(t.Notes) ? "—" : t.Notes)</dd>
                 </dl>
             </div>
@@ -121,4 +154,19 @@ else
             </div>
         </div>
     </div>
+}
+
+@section Scripts {
+    <script>
+        // The typed name only applies when no existing customer is picked, so hide it rather
+        // than leave two fields that look like they both count.
+        (function () {
+            var sel = document.getElementById('partySelect');
+            var row = document.getElementById('walkInRow');
+            if (!sel || !row) return;
+            function sync() { row.style.display = sel.value === '0' ? '' : 'none'; }
+            sel.addEventListener('change', sync);
+            sync();
+        })();
+    </script>
 }

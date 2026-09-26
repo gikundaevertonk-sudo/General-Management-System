@@ -48,7 +48,13 @@
                     <td>@t.TransactionDate.ToString("yyyy-MM-dd")</td>
                     <td>@t.Type</td>
                     <td><span class="badge bg-@(t.Status == TransactionStatus.Confirmed ? "success" : t.Status == TransactionStatus.Cancelled ? "secondary" : "warning text-dark")">@t.Status</span></td>
-                    <td>@Model.PartyOf(t)</td>
+                    <td>
+                        @Model.PartyOf(t)
+                        @if (GMS.Web.Pages.Transactions.IndexModel.IsWalkIn(t))
+                        {
+                            <span class="badge bg-secondary ms-1" title="Not on the customer list">one-off</span>
+                        }
+                    </td>
                     <td class="text-end">@t.Total.ToString("N2")</td>
                     <td class="text-end text-nowrap">
                         @if (t.Status == TransactionStatus.Draft && Me.HasPermission(PermissionCodes.Transactions.Confirm))
