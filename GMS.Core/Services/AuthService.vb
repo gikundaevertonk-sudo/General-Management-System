@@ -6,12 +6,10 @@ Imports GMS.Core.Models
 
 Namespace Services
 
-    ''' <summary>Sign-in, sign-in lockout, and password changes.</summary>
+    ''' <summary>Sign-in and password changes.</summary>
     Public NotInheritable Class AuthService
         Inherits ServiceBase
 
-        Private Const MaxFailedAttempts As Integer = 5
-        Private ReadOnly _lockoutWindow As TimeSpan = TimeSpan.FromMinutes(15)
         Private ReadOnly _hasher As IPasswordHasher
 
         Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, tenantContext As ITenantContext, clock As IClock, hasher As IPasswordHasher)
@@ -38,22 +36,11 @@ Namespace Services
                 Return Result(Of AuthenticatedUser).Fail("This account has been deactivated.")
             End If
 
-            If user.LockedOutUntilUtc.HasValue AndAlso user.LockedOutUntilUtc.Value > Clock.UtcNow Then
-                Return Result(Of AuthenticatedUser).Fail(
-                    $"Account locked. Try again after {user.LockedOutUntilUtc.Value:t} UTC.")
-            End If
+            If Not _hasher.Verify(password, user.PasswordHash) Then Return invalid
 
-            If Not _hasher.Verify(password, user.PasswordHash) Then
-                user.FailedLoginCount += 1
-                If user.FailedLoginCount >= MaxFailedAttempts Then
-                    user.LockedOutUntilUtc = Clock.UtcNow.Add(_lockoutWindow)
-                    user.FailedLoginCount = 0
-                End If
-                users.Update(user)
-                Uow.SaveChanges()
-                Return invalid
-            End If
-
+            ' Nothing sets these any more, but rows predating the change can still carry a
+            ' lock, and the columns are part of the schema. Clearing on success wipes a stale
+            ' one rather than leaving it to sit there forever.
             user.FailedLoginCount = 0
             user.LockedOutUntilUtc = Nothing
             user.LastLoginUtc = Clock.UtcNow
@@ -97,22 +84,11 @@ Namespace Services
                 Return Result(Of AuthenticatedUser).Fail("This account has been deactivated.")
             End If
 
-            If user.LockedOutUntilUtc.HasValue AndAlso user.LockedOutUntilUtc.Value > Clock.UtcNow Then
-                Return Result(Of AuthenticatedUser).Fail(
-                    $"Account locked. Try again after {user.LockedOutUntilUtc.Value:t} UTC.")
-            End If
+            If Not _hasher.Verify(password, user.PasswordHash) Then Return invalid
 
-            If Not _hasher.Verify(password, user.PasswordHash) Then
-                user.FailedLoginCount += 1
-                If user.FailedLoginCount >= MaxFailedAttempts Then
-                    user.LockedOutUntilUtc = Clock.UtcNow.Add(_lockoutWindow)
-                    user.FailedLoginCount = 0
-                End If
-                users.Update(user)
-                Uow.SaveChanges()
-                Return invalid
-            End If
-
+            ' Nothing sets these any more, but rows predating the change can still carry a
+            ' lock, and the columns are part of the schema. Clearing on success wipes a stale
+            ' one rather than leaving it to sit there forever.
             user.FailedLoginCount = 0
             user.LockedOutUntilUtc = Nothing
             user.LastLoginUtc = Clock.UtcNow
