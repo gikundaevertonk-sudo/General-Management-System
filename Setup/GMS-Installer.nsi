@@ -28,6 +28,9 @@ VIAddVersionKey "OriginalFilename" "GMS-Setup.exe"
 RequestExecutionLevel admin
 
 ; MUI Settings
+!define MUI_ICON "..\assets\gms.ico"
+!define MUI_UNICON "..\assets\gms.ico"
+
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
@@ -56,6 +59,7 @@ Section "Install"
   ; Write registry for uninstall
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\GMS" "DisplayName" "${PRODUCT_NAME} v${PRODUCT_VERSION}"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\GMS" "DisplayVersion" "${PRODUCT_VERSION}"
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\GMS" "DisplayIcon" "$INSTDIR\GMS.Desktop.exe"
   WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\GMS" "UninstallString" "$INSTDIR\Uninstall.exe"
   WriteRegStr HKLM "Software\GMS" "Install_Dir" "$INSTDIR"
 SectionEnd
