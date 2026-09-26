@@ -1,0 +1,52 @@
+@* Deliberately not the tenant layout: that one renders the organization sidebar and calls
+   NotificationService.UnreadCountForCurrentUser(), which needs a tenant the operator does
+   not have. The console also wants to look nothing like a client's view of the system. *@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] · GMS Operator</title>
+    <script>
+        document.documentElement.setAttribute('data-bs-theme', 'dark');
+    </script>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body class="bg-body-tertiary">
+    <nav class="navbar navbar-expand px-3" style="background:#0b1220;">
+        <a class="navbar-brand fw-semibold text-white" asp-page="/Platform/Index">
+            GMS <span class="badge bg-primary ms-1">Operator</span>
+        </a>
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+            <div class="ms-auto d-flex align-items-center gap-3">
+                <span class="small" style="color:#94a3b8;">@User.Identity.Name</span>
+                <form method="post" asp-page="/Platform/Logout" class="m-0">
+                    <button class="btn btn-sm btn-outline-light">Sign out</button>
+                </form>
+            </div>
+        }
+    </nav>
+
+    <main class="container-fluid px-3 px-lg-4 py-4" style="max-width:1200px;">
+        @if (TempData["Flash"] is string flash)
+        {
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                @flash
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        }
+        @if (TempData["Error"] is string error)
+        {
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                @error
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        }
+        @RenderBody()
+    </main>
+
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

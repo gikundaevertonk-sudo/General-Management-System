@@ -1,0 +1,59 @@
+@page
+@model GMS.Web.Pages.Platform.NewModel
+@{ ViewData["Title"] = "New organisation"; }
+
+<div class="page-head">
+    <h1>New organisation</h1>
+    <a asp-page="/Platform/Index" class="btn btn-outline-secondary btn-sm">Back</a>
+</div>
+
+@if (Model.CreatedCode is not null)
+{
+    <div class="card mb-3 border-success">
+        <div class="card-body">
+            <h2 class="h5 text-success">@Model.CreatedName created</h2>
+            <p class="mb-3">A 30-day trial has started. Hand these details to the client:</p>
+            <table class="table table-sm w-auto mb-3">
+                <tr><th class="pe-4">Organisation code</th><td><code>@Model.CreatedCode</code></td></tr>
+                <tr><th class="pe-4">Username</th><td><code>@GMS.Web.Pages.Platform.NewModel.SeededAdminUserName</code></td></tr>
+                <tr><th class="pe-4">Temporary password</th><td><code>@GMS.Web.Pages.Platform.NewModel.SeededAdminPassword</code></td></tr>
+            </table>
+            <p class="muted small mb-0">
+                They will be forced to change the password on first sign-in. All three fields are
+                required to sign in — the organisation code is what separates them from every
+                other tenant.
+            </p>
+        </div>
+    </div>
+    <a asp-page="/Platform/New" class="btn btn-primary btn-sm">Create another</a>
+}
+else
+{
+    @if (Model.Error is not null)
+    {
+        <div class="alert alert-danger">@Model.Error</div>
+    }
+
+    <div class="card"><div class="card-body">
+        <form method="post" class="row g-3" style="max-width:520px;">
+            <div class="col-12">
+                <label class="form-label" asp-for="Name">Organisation name</label>
+                <input asp-for="Name" class="form-control" autofocus />
+            </div>
+            <div class="col-12">
+                <label class="form-label" asp-for="Code">Code</label>
+                <input asp-for="Code" class="form-control" />
+                <div class="form-text">
+                    Lower-cased and must be unique. This is what their users type to sign in.
+                </div>
+            </div>
+            <div class="col-12">
+                <label class="form-label" asp-for="Email">Contact email</label>
+                <input asp-for="Email" type="email" class="form-control" />
+            </div>
+            <div class="col-12">
+                <button class="btn btn-primary">Create trial organisation</button>
+            </div>
+        </form>
+    </div></div>
+}

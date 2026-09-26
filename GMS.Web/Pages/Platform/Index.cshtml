@@ -1,0 +1,98 @@
+@page
+@model GMS.Web.Pages.Platform.IndexModel
+@{ ViewData["Title"] = "Organisations"; }
+
+<div class="page-head">
+    <h1>Organisations</h1>
+    <a asp-page="/Platform/New" class="btn btn-primary btn-sm">New organisation</a>
+</div>
+
+@if (Model.Error is not null)
+{
+    <div class="alert alert-danger">@Model.Error</div>
+}
+
+<div class="row g-3 mb-3">
+    <div class="col-6 col-lg-3">
+        <div class="card stat-card"><div class="card-body">
+            <div class="stat-label">Total</div><div class="stat-value">@Model.TotalCount</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card stat-card"><div class="card-body">
+            <div class="stat-label">Active</div><div class="stat-value text-success">@Model.ActiveCount</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card stat-card"><div class="card-body">
+            <div class="stat-label">Not renewed</div><div class="stat-value text-warning">@Model.LapsedCount</div>
+        </div></div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card stat-card"><div class="card-body">
+            <div class="stat-label">Suspended</div><div class="stat-value text-danger">@Model.SuspendedCount</div>
+        </div></div>
+    </div>
+</div>
+
+<div class="card"><div class="table-responsive">
+    <table class="table table-sm table-hover mb-0 align-middle">
+        <thead><tr>
+            <th>Name</th><th>Code</th><th>Plan</th><th>Status</th>
+            <th>Trial ends</th><th>Subscription ends</th><th>Users</th><th class="text-end">Actions</th>
+        </tr></thead>
+        <tbody>
+        @foreach (var o in Model.Organizations)
+        {
+            var status = GMS.Web.Pages.Platform.IndexModel.StatusOf(o);
+            var badge = status switch
+            {
+                "Active" => "success",
+                "Not renewed" => "warning text-dark",
+                _ => "danger"
+            };
+            <tr>
+                <td class="fw-semibold">@o.Name</td>
+                <td><code>@o.Code</code></td>
+                <td>@o.Plan</td>
+                <td><span class="badge bg-@badge">@status</span></td>
+                <td class="small">@(o.TrialEndsAtUtc?.ToString("yyyy-MM-dd") ?? "—")</td>
+                <td class="small">@(o.SubscriptionEndsAtUtc?.ToString("yyyy-MM-dd") ?? "—")</td>
+                <td class="small">max @o.MaxUsers</td>
+                <td class="text-end text-nowrap">
+                    <form method="post" asp-page-handler="Renew" asp-route-id="@o.Id" class="d-inline">
+                        <button class="btn btn-sm btn-link py-0">Renew 30d</button>
+                    </form>
+                    @if (o.IsActive)
+                    {
+                        <form method="post" asp-page-handler="Expire" asp-route-id="@o.Id" class="d-inline"
+                              onsubmit="return confirm('Mark @o.Name as unpaid? Its users will be locked out until you renew.');">
+                            <button class="btn btn-sm btn-link text-warning py-0">Mark unpaid</button>
+                        </form>
+                        <form method="post" asp-page-handler="Suspend" asp-route-id="@o.Id" class="d-inline"
+                              onsubmit="return confirm('Suspend @o.Name? Every one of its users is blocked immediately.');">
+                            <button class="btn btn-sm btn-link text-danger py-0">Suspend</button>
+                        </form>
+                    }
+                    else
+                    {
+                        <form method="post" asp-page-handler="Activate" asp-route-id="@o.Id" class="d-inline">
+                            <button class="btn btn-sm btn-link text-success py-0">Reactivate</button>
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+        @if (Model.TotalCount == 0)
+        {
+            <tr><td colspan="8" class="muted">No organisations yet.</td></tr>
+        }
+        </tbody>
+    </table>
+</div></div>
+
+<p class="muted small mt-3">
+    <strong>Suspend</strong> blocks an organisation outright. <strong>Mark unpaid</strong> expires its
+    subscription, which has the same effect but reads as a billing lapse rather than an
+    administrative block. Either way its users are sent to a notice page until you renew.
+</p>

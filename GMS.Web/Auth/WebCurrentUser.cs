@@ -35,6 +35,14 @@ public sealed class WebCurrentUser(IHttpContextAccessor accessor) : ICurrentUser
 
     public bool IsInRole(string roleName) =>
         IsSystemContext || (User?.IsInRole(roleName) ?? false);
+
+    /// <summary>
+    /// True only when this request was authenticated by the operator cookie scheme. Not
+    /// derived from any claim a tenant identity could carry, so no permission granted inside
+    /// an organization can reach it.
+    /// </summary>
+    public bool IsPlatformOperator =>
+        User?.Identities.Any(i => i.IsAuthenticated && i.AuthenticationType == PlatformAuth.Scheme) ?? false;
 }
 
 /// <summary>Custom claim types used by the cookie identity.</summary>

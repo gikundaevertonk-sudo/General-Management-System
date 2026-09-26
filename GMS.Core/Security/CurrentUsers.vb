@@ -34,6 +34,12 @@ Namespace Security
         Public Function IsInRole(roleName As String) As Boolean Implements ICurrentUser.IsInRole
             Return True
         End Function
+
+        Public ReadOnly Property IsPlatformOperator As Boolean Implements ICurrentUser.IsPlatformOperator
+            Get
+                Return True
+            End Get
+        End Property
     End Class
 
     ''' <summary>The principal used before anyone has signed in. Grants nothing.</summary>
@@ -65,6 +71,12 @@ Namespace Security
         Public Function IsInRole(roleName As String) As Boolean Implements ICurrentUser.IsInRole
             Return False
         End Function
+
+        Public ReadOnly Property IsPlatformOperator As Boolean Implements ICurrentUser.IsPlatformOperator
+            Get
+                Return False
+            End Get
+        End Property
     End Class
 
 End Namespace

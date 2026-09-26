@@ -36,7 +36,7 @@ Namespace Services
 
         ''' <summary>Renew a subscription (extend billing cycle).</summary>
         Public Function Renew(organizationId As Integer) As Result
-            If Denied(PermissionCodes.Settings.Manage) Then Return Forbidden()
+            If DeniedPlatform() Then Return Forbidden()
 
             Dim subRepo = Uow.Repository(Of Subscription)()
             Dim subscription = subRepo.Query().FirstOrDefault(Function(s) s.OrganizationId = organizationId)
@@ -66,7 +66,7 @@ Namespace Services
 
         ''' <summary>Expire a subscription (trial or paid).</summary>
         Public Function ExpireSubscription(organizationId As Integer) As Result
-            If Denied(PermissionCodes.Settings.Manage) Then Return Forbidden()
+            If DeniedPlatform() Then Return Forbidden()
 
             Dim subRepo = Uow.Repository(Of Subscription)()
             Dim subscription = subRepo.Query().FirstOrDefault(Function(s) s.OrganizationId = organizationId)
@@ -77,6 +77,21 @@ Namespace Services
             subscription.BillingCycleEndAtUtc = Clock.UtcNow
 
             subRepo.Update(subscription)
+
+            ' Pulling the organization's own dates back is what actually locks anyone out.
+            ' Access is decided from these two columns, not from the subscription row, so
+            ' expiring the subscription alone showed the tenant as unpaid on the console
+            ' while its users carried on working as though nothing had happened.
+            Dim orgRepo = Uow.Repository(Of Organization)()
+            Dim org = orgRepo.GetById(organizationId)
+            If org IsNot Nothing Then
+                org.SubscriptionEndsAtUtc = Clock.UtcNow
+                ' Only when it was set: leaving a future trial date in place would keep the
+                ' organization inside its trial and undo the expiry.
+                If org.TrialEndsAtUtc.HasValue Then org.TrialEndsAtUtc = Clock.UtcNow
+                orgRepo.Update(org)
+            End If
+
             Uow.SaveChanges()
 
             Return Result.Ok()

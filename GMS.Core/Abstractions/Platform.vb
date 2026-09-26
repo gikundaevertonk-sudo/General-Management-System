@@ -15,6 +15,19 @@ Namespace Abstractions
         Function HasPermission(permissionCode As String) As Boolean
 
         Function IsInRole(roleName As String) As Boolean
+
+        ''' <summary>
+        ''' True for the system owner operating the platform itself, rather than a user of
+        ''' any one tenant.
+        ''' </summary>
+        ''' <remarks>
+        ''' Deliberately separate from <see cref="HasPermission"/>. Permissions are granted by
+        ''' a role inside an organization, so every tenant's own administrator holds them -
+        ''' gating "suspend an organization" on one would let any tenant's admin suspend every
+        ''' other tenant. This is not a permission a tenant can ever be given; it is only true
+        ''' for a caller authenticated outside the tenant model altogether.
+        ''' </remarks>
+        ReadOnly Property IsPlatformOperator As Boolean
     End Interface
 
     ''' <summary>One-way password hashing. Implemented by <c>Pbkdf2PasswordHasher</c>.</summary>

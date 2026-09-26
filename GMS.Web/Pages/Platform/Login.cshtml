@@ -1,0 +1,31 @@
+@page
+@model GMS.Web.Pages.Platform.LoginModel
+@{ ViewData["Title"] = "Operator sign in"; }
+
+<div class="row justify-content-center">
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card">
+            <div class="card-body p-4">
+                <h1 class="h4 mb-1">Operator sign in</h1>
+                <p class="muted small mb-4">System owner access. This is not a client account.</p>
+
+                @if (Model.Error is not null)
+                {
+                    <div class="alert alert-danger py-2">@Model.Error</div>
+                }
+
+                <form method="post">
+                    <div class="mb-3">
+                        <label class="form-label" asp-for="UserName">Username</label>
+                        <input asp-for="UserName" class="form-control" autocomplete="username" autofocus />
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label" asp-for="Password">Password</label>
+                        <input asp-for="Password" type="password" class="form-control" autocomplete="current-password" />
+                    </div>
+                    <button class="btn btn-primary w-100">Sign in</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

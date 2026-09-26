@@ -21,8 +21,11 @@ public class TrialExpiryMiddleware
     {
         var path = context.Request.Path.Value ?? string.Empty;
 
-        // Skip expiry checks for Account pages, Error, and Health endpoints
+        // Skip expiry checks for Account pages, Error, and Health endpoints. /Platform is the
+        // owner's console: it belongs to no tenant, so there is no trial to check, and it is
+        // how a lapsed organization gets renewed in the first place.
         if (path.StartsWith("/Account/", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/Platform", StringComparison.OrdinalIgnoreCase) ||
             path.StartsWith("/Error", StringComparison.OrdinalIgnoreCase) ||
             path == "/health")
         {
@@ -38,9 +41,14 @@ public class TrialExpiryMiddleware
         }
 
         // Extract TenantId from context
-        if (context.Items.TryGetValue("TenantId", out var tenantIdObj) && tenantIdObj is int tenantId)
+        if (context.Items.TryGetValue("TenantId", out var tenantIdObj) && tenantIdObj is int)
         {
-            var orgResult = orgService.GetById(tenantId);
+            // Reads the caller's own organization with no permission check. This used to call
+            // GetById, which is gated on an administrative permission, so for any user without
+            // it the call came back Forbidden and the whole check below was skipped - suspending
+            // an organization or letting its trial lapse only ever blocked its administrators
+            // while ordinary staff carried on working.
+            var orgResult = orgService.GetOwnOrganization();
             if (!orgResult.Failed && orgResult.Value != null)
             {
                 var org = orgResult.Value;
@@ -52,10 +60,9 @@ public class TrialExpiryMiddleware
                     return;
                 }
 
-                // Check if trial has expired
-                if (org.TrialEndsAtUtc.HasValue &&
-                    org.TrialEndsAtUtc.Value < DateTime.UtcNow &&
-                    (org.SubscriptionEndsAtUtc == null || org.SubscriptionEndsAtUtc.Value < DateTime.UtcNow))
+                // One shared definition with the operator console, so what the owner sees
+                // marked unpaid is exactly who gets cut off.
+                if (OrganizationService.IsLapsed(org, DateTime.UtcNow))
                 {
                     context.Response.Redirect("/Account/TrialExpired");
                     return;

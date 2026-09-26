@@ -23,6 +23,15 @@ Namespace Services
             Return Not CurrentUser.HasPermission(permissionCode)
         End Function
 
+        ''' <summary>
+        ''' True when the caller is not the system owner. Guards anything that reaches across
+        ''' organizations; see <see cref="ICurrentUser.IsPlatformOperator"/> for why a
+        ''' permission code cannot do this job.
+        ''' </summary>
+        Protected Function DeniedPlatform() As Boolean
+            Return Not CurrentUser.IsPlatformOperator
+        End Function
+
         Protected Shared Function Forbidden() As Result
             Return Result.Fail("You do not have permission to perform this action.")
         End Function

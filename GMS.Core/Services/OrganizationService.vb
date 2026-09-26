@@ -18,6 +18,7 @@ Namespace Services
 
         ''' <summary>Create a new trial organization.</summary>
         Public Function CreateTrial(name As String, code As String, email As String) As Result(Of Organization)
+            If DeniedPlatform() Then Return Forbidden(Of Organization)()
             If String.IsNullOrWhiteSpace(name) Then Return Result(Of Organization).Fail("Organization name is required.")
             If String.IsNullOrWhiteSpace(code) Then Return Result(Of Organization).Fail("Organization code is required.")
 
@@ -76,26 +77,67 @@ Namespace Services
             Return Result(Of Organization).Ok(org)
         End Function
 
-        ''' <summary>Get organization by ID (admin only).</summary>
+        ''' <summary>Get organization by ID (system owner only).</summary>
         Public Function GetById(id As Integer) As Result(Of Organization)
-            If Denied(PermissionCodes.Settings.Manage) Then Return Forbidden(Of Organization)()
+            If DeniedPlatform() Then Return Forbidden(Of Organization)()
 
             Dim org = Uow.Repository(Of Organization)().GetById(id)
             If org Is Nothing Then Return NotFound(Of Organization)("Organization")
             Return Result(Of Organization).Ok(org)
         End Function
 
-        ''' <summary>List all organizations (admin only).</summary>
+        ''' <summary>List all organizations (system owner only).</summary>
         Public Function ListAll() As Result(Of List(Of Organization))
-            If Denied(PermissionCodes.Settings.Manage) Then Return Forbidden(Of List(Of Organization))()
+            If DeniedPlatform() Then Return Forbidden(Of List(Of Organization))()
 
             Dim orgs = Uow.Repository(Of Organization)().Query().OrderBy(Function(o) o.Name).ToList()
             Return Result(Of List(Of Organization)).Ok(orgs)
         End Function
 
+        ''' <summary>
+        ''' The caller's own organization, with no permission check at all.
+        ''' </summary>
+        ''' <remarks>
+        ''' Reading your own tenant's trial and suspension state is not an administrative act -
+        ''' it is what decides whether you are allowed in at all, so it has to work for every
+        ''' user of the tenant. TrialExpiryMiddleware used to call <see cref="GetById"/> for
+        ''' this and swallow the Forbidden it got back for anyone without settings.manage,
+        ''' which quietly let ordinary staff of a suspended or lapsed organization straight
+        ''' through. There is nothing to leak: the id comes from the caller's own tenant
+        ''' context, so this can only ever return the organization they already belong to.
+        ''' </remarks>
+        Public Function GetOwnOrganization() As Result(Of Organization)
+            Dim org = Uow.Repository(Of Organization)().GetById(TenantContext.OrganizationId)
+            If org Is Nothing Then Return NotFound(Of Organization)("Organization")
+            Return Result(Of Organization).Ok(org)
+        End Function
+
+        ''' <summary>
+        ''' Whether an organization has run out of paid-up time and should be locked out.
+        ''' </summary>
+        ''' <remarks>
+        ''' The single definition, so the operator console and TrialExpiryMiddleware cannot
+        ''' disagree about who is cut off. An organization with no dates at all is never
+        ''' lapsed; otherwise at least one of its two end dates has to still be in the future.
+        '''
+        ''' The old test required a trial end date in the past, which meant a paid customer
+        ''' whose TrialEndsAtUtc was never set could not be locked out however long their
+        ''' subscription had been expired.
+        ''' </remarks>
+        Public Shared Function IsLapsed(org As Organization, asOfUtc As DateTime) As Boolean
+            If org Is Nothing Then Return False
+
+            Dim hasAnyDate = org.TrialEndsAtUtc.HasValue OrElse org.SubscriptionEndsAtUtc.HasValue
+            If Not hasAnyDate Then Return False
+
+            Dim trialStillValid = org.TrialEndsAtUtc.HasValue AndAlso org.TrialEndsAtUtc.Value >= asOfUtc
+            Dim subscriptionStillValid = org.SubscriptionEndsAtUtc.HasValue AndAlso org.SubscriptionEndsAtUtc.Value >= asOfUtc
+            Return Not trialStillValid AndAlso Not subscriptionStillValid
+        End Function
+
         ''' <summary>Update organization plan and subscription end date.</summary>
         Public Function UpdatePlan(orgId As Integer, plan As String, endsAt As DateTime) As Result
-            If Denied(PermissionCodes.Settings.Manage) Then Return Forbidden()
+            If DeniedPlatform() Then Return Forbidden()
             If String.IsNullOrWhiteSpace(plan) Then Return Result.Fail("Plan is required.")
 
             Dim orgRepo = Uow.Repository(Of Organization)()
@@ -123,7 +165,7 @@ Namespace Services
 
         ''' <summary>Suspend an organization (blocks all access).</summary>
         Public Function Suspend(orgId As Integer) As Result
-            If Denied(PermissionCodes.Settings.Manage) Then Return Forbidden()
+            If DeniedPlatform() Then Return Forbidden()
 
             Dim org = Uow.Repository(Of Organization)().GetById(orgId)
             If org Is Nothing Then Return NotFound("Organization")
@@ -140,7 +182,7 @@ Namespace Services
 
         ''' <summary>Activate a suspended organization.</summary>
         Public Function Activate(orgId As Integer) As Result
-            If Denied(PermissionCodes.Settings.Manage) Then Return Forbidden()
+            If DeniedPlatform() Then Return Forbidden()
 
             Dim org = Uow.Repository(Of Organization)().GetById(orgId)
             If org Is Nothing Then Return NotFound("Organization")

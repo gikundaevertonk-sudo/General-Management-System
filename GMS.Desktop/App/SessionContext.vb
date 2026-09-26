@@ -77,6 +77,16 @@ Namespace App
             If _session.SystemMode Then Return True
             Return String.Equals(_session.Principal?.RoleName, roleName, StringComparison.OrdinalIgnoreCase)
         End Function
+
+        ''' <summary>
+        ''' Always false. The operator console is web-only; the desktop client signs in as a
+        ''' user of one organization and has no way to act on any other.
+        ''' </summary>
+        Public ReadOnly Property IsPlatformOperator As Boolean Implements ICurrentUser.IsPlatformOperator
+            Get
+                Return False
+            End Get
+        End Property
     End Class
 
 End Namespace
