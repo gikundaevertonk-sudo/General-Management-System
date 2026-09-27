@@ -17,6 +17,7 @@ $url       = "http://127.0.0.1:$port"
 # .url, not .lnk: a Windows shortcut's target has to be a file path, so pointing a .lnk at an
 # address silently leaves it with no target at all. An internet shortcut is the right kind.
 $shortcut  = Join-Path ([Environment]::GetFolderPath('Desktop')) 'GMS Operator.url'
+$startMenu = Join-Path ([Environment]::GetFolderPath('Programs')) 'GMS Operator.url'
 # The Startup folder, not Task Scheduler: registering a task in the root library needs
 # administrator rights on this machine, and this needs none. It is also obvious and trivially
 # undone - the autostart is one file you can see and delete.
@@ -33,7 +34,7 @@ function Stop-Console {
 if ($Remove) {
     Write-Host 'Removing the operator console...' -ForegroundColor Yellow
     Stop-Console
-    Remove-Item $startup, $shortcut -ErrorAction SilentlyContinue
+    Remove-Item $startup, $shortcut, $startMenu -ErrorAction SilentlyContinue
     Remove-Item $installTo -Recurse -Force -ErrorAction SilentlyContinue
     Write-Host 'Removed. Nothing starts at logon any more.' -ForegroundColor Green
     return
@@ -99,16 +100,32 @@ Start-Process -FilePath $exe -WorkingDirectory $installTo -WindowStyle Hidden
 # ---------------------------------------------------------------------------
 # 5. A desktop shortcut that just opens the address.
 # ---------------------------------------------------------------------------
-$icon  = Join-Path $repo 'assets\gms.ico'
+# The icon is copied into the install folder and referenced there, not in the repository. A
+# shortcut pointing at the repo loses its picture the moment that folder is renamed, moved or
+# cloned somewhere else - and the shortcut is the only way this console gets opened, so it should
+# not depend on anything outside its own installation.
+$icon = Join-Path $installTo 'gms.ico'
+$repoIcon = Join-Path $repo 'assets\gms.ico'
+if (Test-Path $repoIcon) { Copy-Item $repoIcon $icon -Force }
+
 $lines = @('[InternetShortcut]', "URL=$url")
 if (Test-Path $icon) { $lines += @("IconFile=$icon", 'IconIndex=0') }
-$lines | Set-Content $shortcut -Encoding ascii
-# Clear the broken .lnk an earlier version of this script may have left behind.
+foreach ($target in @($shortcut, $startMenu)) { $lines | Set-Content $target -Encoding ascii }
+
+# Clear the broken .lnk an earlier version of this script left behind: a Windows shortcut's target
+# has to be a file path, so pointing one at an address leaves it with no target at all.
 Remove-Item (Join-Path ([Environment]::GetFolderPath('Desktop')) 'GMS Operator.lnk') -ErrorAction SilentlyContinue
 
 Write-Host ''
-Write-Host "  Console:  $url" -ForegroundColor Cyan
-Write-Host "  Shortcut: $shortcut"
+Write-Host "  Console:   $url" -ForegroundColor Cyan
+Write-Host "  Sign in as: $user"
+Write-Host "  Shortcuts: desktop and Start menu, both named 'GMS Operator'"
 Write-Host "  Starts automatically at logon. No terminal needed."
-Write-Host "  To remove: .\publish-operator.ps1 -Remove"
+Write-Host ''
+Write-Host "  User-secrets on GMS.Operator is the master copy of the credential and the" -ForegroundColor DarkGray
+Write-Host "  connection string; this script copies them next to the executable, which is the" -ForegroundColor DarkGray
+Write-Host "  only place a published app can read them. Change either one there, then run this" -ForegroundColor DarkGray
+Write-Host "  script again - that is what keeps the two copies the same." -ForegroundColor DarkGray
+Write-Host ''
+Write-Host "  To remove everything: .\publish-operator.ps1 -Remove"
 Write-Host ''
