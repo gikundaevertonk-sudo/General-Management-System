@@ -85,10 +85,16 @@ Namespace Services
             Dim orgRepo = Uow.Repository(Of Organization)()
             Dim org = orgRepo.GetById(organizationId)
             If org IsNot Nothing Then
-                org.SubscriptionEndsAtUtc = Clock.UtcNow
+                ' A second before now, not now. IsLapsed counts an end date equal to the moment
+                ' asked about as still valid, so setting these to Clock.UtcNow left the tenant
+                ' entitled for the rest of that instant - "mark unpaid" did not take effect at the
+                ' moment it was applied. Milliseconds in practice, but the operator pressed a
+                ' button that says it locks them out, so it should.
+                Dim endedAt = Clock.UtcNow.AddSeconds(-1)
+                org.SubscriptionEndsAtUtc = endedAt
                 ' Only when it was set: leaving a future trial date in place would keep the
                 ' organization inside its trial and undo the expiry.
-                If org.TrialEndsAtUtc.HasValue Then org.TrialEndsAtUtc = Clock.UtcNow
+                If org.TrialEndsAtUtc.HasValue Then org.TrialEndsAtUtc = endedAt
                 orgRepo.Update(org)
             End If
 

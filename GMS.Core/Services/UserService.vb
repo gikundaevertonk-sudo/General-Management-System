@@ -59,7 +59,28 @@ Namespace Services
             errors.AddRange(AuthService.ValidateNewPassword(temporaryPassword))
             If errors.Any() Then Return Result(Of User).Fail(errors)
 
+            ' The organization's user cap, enforced. It was stored, displayed on the operator
+            ' console and editable there, but nothing ever read it - an organization capped at five
+            ' could create fifty, and the console showed "7/5 users" without complaint.
+            ' Counted with an explicit OrganizationId match rather than relying on the query
+            ' filter, so the figure is right under the in-memory store too, which has no filters.
+            Dim orgId = TenantContext.OrganizationId
+            Dim org = Uow.Repository(Of Organization)().GetById(orgId)
+            If org IsNot Nothing AndAlso org.MaxUsers > 0 Then
+                Dim existing = Uow.Repository(Of User)().Query().Count(Function(u) u.OrganizationId = orgId)
+                If existing >= org.MaxUsers Then
+                    Return Result(Of User).Fail(
+                        $"This organization is limited to {org.MaxUsers} users and already has {existing}. " &
+                        "Deactivating a user does not free a place - remove one, or ask for the limit to be raised.")
+                End If
+            End If
+
+            ' OrganizationId is set here rather than left to GmsDbContext.SaveChanges to stamp.
+            ' That stamp only exists on the EF path, so under the in-memory store the row would
+            ' keep OrganizationId 0 - and the cap counted above, which matches on OrganizationId,
+            ' would never see any of these users and so would never trip.
             Dim entity As New User With {
+                .OrganizationId = orgId,
                 .UserName = input.UserName.Trim(),
                 .Email = If(input.Email, String.Empty).Trim(),
                 .FullName = If(input.FullName, String.Empty).Trim(),
