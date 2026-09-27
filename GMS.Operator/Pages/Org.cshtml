@@ -75,11 +75,78 @@ else
                 </form>
             </div></div>
 
-            <div class="card"><div class="card-header fw-semibold">Subscription</div><div class="card-body d-flex flex-wrap gap-2">
-                <form method="post" asp-page-handler="Renew"><button class="btn btn-sm btn-outline-success">Renew 30 days</button></form>
+            <div class="card"><div class="card-header fw-semibold">Subscription</div>
+            <div class="card-body">
+                @{
+                    var endsInForce = o.SubscriptionEndsAtUtc ?? o.TrialEndsAtUtc;
+                    var daysLeft = endsInForce is null ? (int?)null : (int)Math.Ceiling((endsInForce.Value - DateTime.UtcNow).TotalDays);
+                }
+                <p class="small mb-3">
+                    @if (endsInForce is null)
+                    {
+                        <span class="badge bg-info text-dark">Never expires</span>
+                        <span class="muted ms-1">Access is not time limited.</span>
+                    }
+                    else if (daysLeft < 0)
+                    {
+                        <span class="badge bg-danger">Expired</span>
+                        <span class="muted ms-1">Ran out on @endsInForce.Value.ToString("d MMM yyyy"), @(-daysLeft) day(s) ago.</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-success">@daysLeft day(s) left</span>
+                        <span class="muted ms-1">Runs to @endsInForce.Value.ToString("d MMM yyyy").</span>
+                    }
+                </p>
+
+                <form method="post" asp-page-handler="Subscription" class="row g-2 align-items-end mb-3">
+                    <div class="col-12 col-sm-4">
+                        <label asp-for="Plan" class="form-label mb-0 small">Plan</label>
+                        <input asp-for="Plan" class="form-control form-control-sm" list="planList" />
+                        <datalist id="planList">
+                            @foreach (var p in GMS.Operator.Pages.OrgModel.Plans) { <option value="@p"></option> }
+                        </datalist>
+                    </div>
+                    <div class="col-6 col-sm-4">
+                        <label asp-for="StartsOn" class="form-label mb-0 small">Starts</label>
+                        <input asp-for="StartsOn" type="date" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-6 col-sm-4">
+                        <label asp-for="EndsOn" class="form-label mb-0 small">Ends</label>
+                        <input asp-for="EndsOn" type="date" class="form-control form-control-sm" id="EndsOn" />
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check">
+                            <input asp-for="NeverExpires" class="form-check-input" id="NeverExpires"
+                                   onchange="document.getElementById('EndsOn').disabled = this.checked;" />
+                            <label asp-for="NeverExpires" class="form-check-label small">
+                                Never expires — no end date, never locked out
+                            </label>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <button class="btn btn-sm btn-primary">Save subscription</button>
+                        <span class="muted small ms-2">Payment is taken outside the system; this records the result.</span>
+                    </div>
+                </form>
+
+                <form method="post" asp-page-handler="Extend" class="row g-2 align-items-end border-top pt-3">
+                    <div class="col-6 col-sm-4">
+                        <label asp-for="ExtendDays" class="form-label mb-0 small">Add days</label>
+                        <input asp-for="ExtendDays" type="number" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-6 col-sm-8">
+                        <button class="btn btn-sm btn-outline-success">Add to the end date</button>
+                    </div>
+                    <div class="col-12"><div class="form-text">
+                        Counted from today if they have already run out, so they get the full period.
+                    </div></div>
+                </form>
+            </div>
+            <div class="card-body border-top d-flex flex-wrap gap-2">
                 <form method="post" asp-page-handler="Expire"
                       onsubmit="return confirm('Mark @o.Name unpaid? Its users are locked out until you renew.');">
-                    <button class="btn btn-sm btn-outline-warning">Mark unpaid</button>
+                    <button class="btn btn-sm btn-outline-warning">Mark unpaid now</button>
                 </form>
                 @if (o.IsActive)
                 {
@@ -94,8 +161,8 @@ else
                 }
             </div>
             <div class="card-footer muted small">
-                Trial ends @(o.TrialEndsAtUtc?.ToString("yyyy-MM-dd") ?? "—") ·
-                subscription ends @(o.SubscriptionEndsAtUtc?.ToString("yyyy-MM-dd") ?? "—")
+                Suspending blocks them outright; marking unpaid reads as a billing lapse. Either way
+                their users are sent to a notice page until you put it right.
             </div></div>
         </div>
 

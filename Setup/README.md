@@ -1,168 +1,55 @@
-# GMS Desktop - Installer Setup
+# The customer installer
 
-This folder contains the Windows Installer (MSI) configuration for GMS Desktop.
+Packages `GMS.Desktop` into a single `GMS-Setup.exe` for customers to run. This is the only thing
+that ever goes to a customer — `GMS.Web` is the hosted site, and `GMS.Operator` stays with you.
 
-## Prerequisites
+## Building it
 
-1. **WiX Toolset 7.0+** - Required to build the installer
-   - Download: https://wixtoolset.org/releases/
-   - Install to default location: `C:\Program Files\WiX Toolset v7.0\`
-   - Latest version recommended (v7.0.0)
-
-2. **Published Application** - Must have run the publisher first
-   - Run: `.\publish-desktop.ps1` (from parent directory)
-   - Creates: `publish/` folder with GMS.Desktop.exe and all dependencies
-
-## Building the Installer
-
-### Step 1: Install WiX Toolset
+From the repository root, in PowerShell:
 
 ```powershell
-# Download and install WiX Toolset v4.0 from:
-# https://wixtoolset.org/releases/
-
-# Verify installation
-dir "C:\Program Files\WiX Toolset v4.0\bin"
+.\publish-desktop.ps1
+.\Setup\build-installer-nsis.ps1
 ```
 
-### Step 2: Build the MSI
+The result is `GMS-Setup.exe` in the repository root. It is not committed — it is around 55 MB and
+`.gitignore` covers both it and `publish/`.
 
-```powershell
-cd "C:\Users\Everton\source\repos\General Management System\Setup"
-.\build-installer.ps1
-```
+You need [NSIS](https://nsis.sourceforge.io/Download) installed; the build script looks in both
+`C:\Program Files\NSIS` and `C:\Program Files (x86)\NSIS` and tells you if it is missing.
 
-This will:
-1. Compile WiX source files
-2. Link dependencies
-3. Create `Output\GMS-Setup.msi` (~140 MB)
+## Publishing a release
 
-### Step 3: Test the Installer
-
-```powershell
-# Double-click the MSI to install:
-.\Output\GMS-Setup.msi
-
-# Or install from command line:
-msiexec /i ".\Output\GMS-Setup.msi" /qn
-```
-
-## What the Installer Does
-
-✅ Installs to: `C:\Program Files\General Management System\`
-✅ Creates Start Menu shortcut
-✅ Creates Desktop shortcut
-✅ Registers in Windows Add/Remove Programs
-✅ Sets working directory for file access
-✅ Supports silent/quiet installation
-✅ Supports uninstall via Control Panel
-
-## Customization
-
-### Change Installation Directory
-
-Edit `Product.wxs`:
-```xml
-<Directory Id="INSTALLFOLDER" Name="General Management System" />
-```
-
-### Change Application Name
-
-Edit `Product.wxs`:
-```xml
-<Product Name="Your Custom Name" ... />
-```
-
-### Add Company Logo/Icon
-
-Place icon in this folder and reference in `Product.wxs`:
-```xml
-<Property Id="ARPPRODUCTICON" Value="YourIcon.ico" />
-```
-
-### Change Manufacturer/Company
-
-Edit `Product.wxs`:
-```xml
-<Product Manufacturer="Your Company" ... />
-```
-
-## Distribution
-
-Once built, the MSI can be:
-
-1. **Downloaded** - Share `GMS-Setup.msi` (~140 MB)
-2. **Burned to CD/USB** - Copy MSI to removable media
-3. **Deployed via Group Policy** - In enterprise environments
-4. **Silent Install** - Script for automation:
+1. Bump the version in `GMS.Core`, `GMS.Desktop`, `GMS.Web` and in `GMS-Installer.nsi`
+   (`VERSION` and `PRODUCT_VERSION`).
+2. Build, as above.
+3. Take the size and checksum:
    ```powershell
-   msiexec /i "GMS-Setup.msi" /qn ALLUSERS=1
+   (Get-Item .\GMS-Setup.exe).Length
+   (Get-FileHash .\GMS-Setup.exe -Algorithm SHA256).Hash
    ```
+4. Copy the file to `wwwroot/releases/GMS-Setup-<version>.exe` **on the server**.
+5. Add an entry at the top of `GMS.Web/releases.json` with the version, date, url, size, checksum
+   and notes written as what changed for the person using it.
 
-## Uninstall
+The download page reads `releases.json` at request time, so publishing is copying a file and
+editing that JSON. No redeploy.
 
-Users can uninstall via:
-- Control Panel → Programs → Uninstall a program
-- Command line: `msiexec /x GMS-Setup.msi /qn`
+## The secrets check
 
-## File Structure
+`build-installer-nsis.ps1` refuses to build if the publish folder carries a database connection
+string, anything under `Platform:Operator`, a Supabase host name or a password hash. The installer
+ships the publish folder wholesale, so anything left in there goes to every customer. A note in a
+README is not a guard; refusing to build is.
+
+## Files
 
 ```
-Setup/
-├── Setup.wixproj       # WiX project file
-├── Product.wxs         # Main installer definition
-├── build-installer.ps1 # Build script
-├── README.md           # This file
-└── Output/
-    └── GMS-Setup.msi   # Generated installer
+GMS-Installer.nsi          the installer script - version, files, shortcuts, uninstaller
+build-installer-nsis.ps1   the secrets pre-flight, then makensis
 ```
 
-## Troubleshooting
-
-**"WiX Toolset not found"**
-- Install from: https://wixtoolset.org/releases/
-- Verify installation path: `C:\Program Files\WiX Toolset v4.0\bin`
-
-**"Publish folder not found"**
-- Run `.\publish-desktop.ps1` first (from parent directory)
-- Creates `publish/` folder with all application files
-
-**"Candle compilation failed"**
-- Check WiX source syntax in `Product.wxs`
-- Verify all referenced files exist in `../publish/`
-
-**"Build produces large MSI"**
-- This is normal - MSI includes .NET runtime (~140 MB)
-- To reduce size: exclude debug symbols (already configured)
-
-## Advanced Configuration
-
-### Silent Installation with Logging
-
-```powershell
-msiexec /i "GMS-Setup.msi" /qn /l*v "install.log"
-```
-
-### Repair Installation
-
-```powershell
-msiexec /f "GMS-Setup.msi" /qn
-```
-
-### Customize Installation Path
-
-```powershell
-msiexec /i "GMS-Setup.msi" INSTALLFOLDER="C:\Custom\Path\"
-```
-
-## Next Steps
-
-1. Install WiX Toolset
-2. Run `.\build-installer.ps1`
-3. Test the generated MSI
-4. Distribute to customers
-
-## Support
-
-For WiX Toolset help: https://wixtoolset.org/documentation/
-For GMS support: Contact your administrator
+There used to be a parallel WiX/MSI path here (`Product.wxs`, `Setup.wixproj`,
+`build-installer.ps1`). It was never the one being used, and every release meant remembering to bump
+a version in a file nothing built, so it has been removed. If an MSI is ever genuinely wanted — for
+Group Policy deployment, say — start it again from scratch rather than reviving that.

@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using GMS.Core.Models;
 using GMS.Core.Services;
 
@@ -13,6 +14,7 @@ public class OrgModel(OrganizationService organizations, SubscriptionService sub
     [BindProperty(SupportsGet = true)] public int Id { get; set; }
 
     public Organization? Org { get; private set; }
+    public Subscription? Subscription { get; private set; }
     public TenantStats? Stats { get; private set; }
     public IReadOnlyList<TenantUser> Users { get; private set; } = [];
     public string? Error { get; private set; }
@@ -25,6 +27,17 @@ public class OrgModel(OrganizationService organizations, SubscriptionService sub
     // reset form
     [BindProperty] public int ResetUserId { get; set; }
     [BindProperty] public string? TempPassword { get; set; }
+
+    // subscription form. NeverExpires wins over EndsOn when both are posted - an operator who
+    // ticks the box has said what they mean more clearly than a date left in the field.
+    [BindProperty] public string? Plan { get; set; }
+    [BindProperty, DataType(DataType.Date)] public DateTime StartsOn { get; set; }
+    [BindProperty, DataType(DataType.Date)] public DateTime? EndsOn { get; set; }
+    [BindProperty] public bool NeverExpires { get; set; }
+    [BindProperty] public int ExtendDays { get; set; } = 30;
+
+    /// <summary>The plans offered in the dropdown. Free text is still accepted on post.</summary>
+    public static readonly string[] Plans = ["trial", "basic", "professional", "enterprise"];
 
     // delete confirmation
     [BindProperty] public string? ConfirmCode { get; set; }
@@ -60,6 +73,27 @@ public class OrgModel(OrganizationService organizations, SubscriptionService sub
         // repeating it buys nothing and would put it in the flash cookie in readable form.
         return Finish(r.Succeeded,
             "Password reset. They must change it the next time they sign in.", r.ErrorMessage);
+    }
+
+    public IActionResult OnPostSubscription()
+    {
+        // The tick box is authoritative, so a date left over in the field cannot contradict it.
+        var ends = NeverExpires ? (DateTime?)null : EndsOn;
+        if (!NeverExpires && ends is null)
+            return Finish(false, "", "Give an end date, or tick that it never expires.", keepForm: true);
+
+        var r = subscriptions.SetSubscription(Id, Plan ?? "", DateTime.SpecifyKind(StartsOn, DateTimeKind.Utc),
+                                              ends is null ? null : DateTime.SpecifyKind(ends.Value, DateTimeKind.Utc));
+        var message = ends is null
+            ? "Subscription saved. This organisation never expires."
+            : $"Subscription saved. It runs to {ends:d MMMM yyyy}.";
+        return Finish(r.Succeeded, message, r.ErrorMessage, keepForm: true);
+    }
+
+    public IActionResult OnPostExtend()
+    {
+        var r = subscriptions.ExtendBy(Id, ExtendDays);
+        return Finish(r.Succeeded, $"Added {ExtendDays} days.", r.ErrorMessage);
     }
 
     public IActionResult OnPostRenew()
@@ -126,6 +160,14 @@ public class OrgModel(OrganizationService organizations, SubscriptionService sub
         Name = Org.Name ?? "";
         Email = Org.Email;
         MaxUsers = Org.MaxUsers;
+
+        Plan = Org.Plan;
+        // Whichever end date is in force, so the field shows what is actually being enforced
+        // rather than whichever column happens to be populated.
+        var ends = Org.SubscriptionEndsAtUtc ?? Org.TrialEndsAtUtc;
+        NeverExpires = ends is null;
+        EndsOn = ends?.Date;
+        StartsOn = (Subscription?.BillingCycleStartAtUtc ?? Org.CreatedAtUtc).Date;
     }
 
     private bool Load()
@@ -139,6 +181,9 @@ public class OrgModel(OrganizationService organizations, SubscriptionService sub
 
         var u = organizations.ListUsers(Id);
         if (u.Succeeded) Users = u.Value;
+
+        var sub = subscriptions.GetByOrganizationId(Id);
+        if (sub.Succeeded) Subscription = sub.Value;
         return true;
     }
 }

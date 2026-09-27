@@ -95,8 +95,28 @@ Namespace Services
             users.Update(user)
             Uow.SaveChanges()
 
+            WarnAboutExpiry(organization.Id)
+
             Return Result(Of AuthenticatedUser).Ok(Project(user))
         End Function
+
+        ''' <summary>
+        ''' Raises the "your subscription is about to end" notification if it is due.
+        ''' </summary>
+        ''' <remarks>
+        ''' Sign-in is the trigger because there is no scheduler here, and it is the moment the
+        ''' warning can actually be acted on. Swallowing the failure is deliberate: a reminder is
+        ''' worth strictly less than being able to sign in, so nothing it does may turn a valid
+        ''' sign-in into a failed one.
+        ''' </remarks>
+        Private Sub WarnAboutExpiry(organizationId As Integer)
+            Try
+                Dim subscriptions = New SubscriptionService(Uow, CurrentUser, TenantContext, Clock)
+                subscriptions.WarnIfExpiringSoon(organizationId)
+            Catch
+                ' Ignored on purpose. See above.
+            End Try
+        End Sub
 
         Public Function ChangePassword(userId As Integer, currentPassword As String, newPassword As String) As Result
             Dim errors = ValidateNewPassword(newPassword)
