@@ -1,0 +1,169 @@
+@page "{id:int}"
+@model GMS.Web.Pages.Platform.OrgModel
+@{ ViewData["Title"] = Model.Org?.Name ?? "Organisation"; }
+
+@if (Model.Org is null)
+{
+    <div class="alert alert-danger">Organisation not found.</div>
+}
+else
+{
+    var o = Model.Org;
+    var status = !o.IsActive ? "Suspended" : Model.IsLapsed ? "Not renewed" : "Active";
+    var badge = status == "Active" ? "success" : status == "Not renewed" ? "warning text-dark" : "danger";
+
+    <div class="page-head">
+        <div>
+            <h1 class="mb-1">@o.Name <span class="badge bg-@badge align-middle">@status</span></h1>
+            <div class="muted small">Code <code>@o.Code</code> · @o.Plan · @(string.IsNullOrWhiteSpace(o.Email) ? "no contact email" : o.Email)</div>
+        </div>
+        <a asp-page="/Platform/Index" class="btn btn-outline-secondary btn-sm">Back</a>
+    </div>
+
+    @if (Model.Error is not null) { <div class="alert alert-danger">@Model.Error</div> }
+
+    @if (Model.Stats is { } st)
+    {
+        <div class="row g-3 mb-4">
+            @foreach (var (label, value) in new (string, string)[]
+            {
+                ("Users", st.UserCount.ToString()),
+                ("Products", st.ProductCount.ToString()),
+                ("Transactions", st.TransactionCount.ToString()),
+                ("Customers", st.CustomerCount.ToString()),
+                ("Last sign-in", st.LastSignInUtc?.ToString("yyyy-MM-dd") ?? "never"),
+            })
+            {
+                <div class="col-6 col-lg">
+                    <div class="card stat-card"><div class="card-body">
+                        <div class="stat-label">@label</div>
+                        <div class="stat-value">@value</div>
+                    </div></div>
+                </div>
+            }
+        </div>
+
+        @if (st.UserCount == 0)
+        {
+            <div class="alert alert-warning">
+                This organisation has no users, so nobody can sign in to it. That means its setup
+                did not finish. It needs deleting and recreating.
+            </div>
+        }
+    }
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card mb-4"><div class="card-header fw-semibold">Details</div><div class="card-body">
+                <form method="post" asp-page-handler="Details" class="row g-3">
+                    <div class="col-12">
+                        <label asp-for="Name" class="form-label">Name</label>
+                        <input asp-for="Name" class="form-control" />
+                    </div>
+                    <div class="col-12">
+                        <label asp-for="Email" class="form-label">Contact email</label>
+                        <input asp-for="Email" class="form-control" />
+                    </div>
+                    <div class="col-6">
+                        <label asp-for="MaxUsers" class="form-label">User cap</label>
+                        <input asp-for="MaxUsers" type="number" min="1" class="form-control" />
+                    </div>
+                    <div class="col-12">
+                        <button class="btn btn-primary btn-sm">Save details</button>
+                        <span class="muted small ms-2">The code cannot be changed — its users sign in with it.</span>
+                    </div>
+                </form>
+            </div></div>
+
+            <div class="card"><div class="card-header fw-semibold">Subscription</div><div class="card-body d-flex flex-wrap gap-2">
+                <form method="post" asp-page-handler="Renew"><button class="btn btn-sm btn-outline-success">Renew 30 days</button></form>
+                <form method="post" asp-page-handler="Expire"
+                      onsubmit="return confirm('Mark @o.Name unpaid? Its users are locked out until you renew.');">
+                    <button class="btn btn-sm btn-outline-warning">Mark unpaid</button>
+                </form>
+                @if (o.IsActive)
+                {
+                    <form method="post" asp-page-handler="Suspend"
+                          onsubmit="return confirm('Suspend @o.Name? Every one of its users is blocked immediately.');">
+                        <button class="btn btn-sm btn-outline-danger">Suspend</button>
+                    </form>
+                }
+                else
+                {
+                    <form method="post" asp-page-handler="Activate"><button class="btn btn-sm btn-outline-success">Reactivate</button></form>
+                }
+            </div>
+            <div class="card-footer muted small">
+                Trial ends @(o.TrialEndsAtUtc?.ToString("yyyy-MM-dd") ?? "—") ·
+                subscription ends @(o.SubscriptionEndsAtUtc?.ToString("yyyy-MM-dd") ?? "—")
+            </div></div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card mb-4"><div class="card-header fw-semibold">Users</div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead><tr><th>User</th><th>Role</th><th>Last sign-in</th><th></th></tr></thead>
+                    <tbody>
+                    @foreach (var u in Model.Users)
+                    {
+                        <tr>
+                            <td>
+                                <span class="fw-semibold">@u.UserName</span>
+                                @if (!u.IsActive) { <span class="badge bg-secondary ms-1">inactive</span> }
+                                @if (u.MustChangePassword) { <span class="badge bg-info text-dark ms-1">must change</span> }
+                                <div class="muted small">@u.FullName</div>
+                            </td>
+                            <td class="small">@u.RoleName</td>
+                            <td class="small">@(u.LastLoginUtc?.ToString("yyyy-MM-dd") ?? "never")</td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-link py-0" type="button"
+                                        onclick="document.getElementById('ResetUserId').value='@u.Id';document.getElementById('TempPassword').focus();">
+                                    Reset password
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                    @if (Model.Users.Count == 0) { <tr><td colspan="4" class="muted">No users.</td></tr> }
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-body border-top">
+                <form method="post" asp-page-handler="Reset" class="row g-2 align-items-end">
+                    <input type="hidden" asp-for="ResetUserId" id="ResetUserId" />
+                    <div class="col-12 col-sm-7">
+                        <label asp-for="TempPassword" class="form-label mb-0 small">Temporary password</label>
+                        <input asp-for="TempPassword" id="TempPassword" class="form-control form-control-sm"
+                               placeholder="at least 8 characters, a letter and a digit" />
+                    </div>
+                    <div class="col-12 col-sm-5">
+                        <button class="btn btn-sm btn-outline-primary w-100">Reset the selected user</button>
+                    </div>
+                    <div class="col-12"><div class="form-text">
+                        Pick a user above, then set this. They will be forced to change it when they sign in.
+                    </div></div>
+                </form>
+            </div></div>
+
+            @if (!Model.IsDefault)
+            {
+                <div class="card border-danger"><div class="card-header fw-semibold text-danger">Delete this organisation</div><div class="card-body">
+                    <p class="small mb-3">
+                        Removes @o.Name and everything in it — users, products, customers, suppliers,
+                        transactions and history. This cannot be undone.
+                    </p>
+                    <form method="post" asp-page-handler="Delete" class="row g-2 align-items-end"
+                          onsubmit="return confirm('Permanently delete @o.Name and all of its data?');">
+                        <div class="col-12 col-sm-7">
+                            <label asp-for="ConfirmCode" class="form-label mb-0 small">Type <code>@o.Code</code> to confirm</label>
+                            <input asp-for="ConfirmCode" class="form-control form-control-sm" autocomplete="off" />
+                        </div>
+                        <div class="col-12 col-sm-5">
+                            <button class="btn btn-sm btn-danger w-100">Delete permanently</button>
+                        </div>
+                    </form>
+                </div></div>
+            }
+        </div>
+    </div>
+}

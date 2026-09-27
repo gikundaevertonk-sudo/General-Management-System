@@ -1,0 +1,144 @@
+using GMS.Core.Models;
+using GMS.Core.Services;
+using GMS.Web.Auth;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+
+namespace GMS.Web.Pages.Platform;
+
+[Authorize(AuthenticationSchemes = PlatformAuth.Scheme, Policy = PlatformAuth.Policy)]
+public class OrgModel(OrganizationService organizations, SubscriptionService subscriptions) : PageModel
+{
+    [BindProperty(SupportsGet = true)] public int Id { get; set; }
+
+    public Organization? Org { get; private set; }
+    public TenantStats? Stats { get; private set; }
+    public IReadOnlyList<TenantUser> Users { get; private set; } = [];
+    public string? Error { get; private set; }
+
+    // edit form
+    [BindProperty] public string Name { get; set; } = "";
+    [BindProperty] public string? Email { get; set; }
+    [BindProperty] public int MaxUsers { get; set; }
+
+    // reset form
+    [BindProperty] public int ResetUserId { get; set; }
+    [BindProperty] public string? TempPassword { get; set; }
+
+    // delete confirmation
+    [BindProperty] public string? ConfirmCode { get; set; }
+
+    public bool IsLapsed => Org is not null && OrganizationService.IsLapsed(Org, DateTime.UtcNow);
+
+    public bool IsDefault =>
+        Org?.Code?.Equals(DataSeeder.DefaultOrganizationCode, StringComparison.OrdinalIgnoreCase) == true;
+
+    public IActionResult OnGet()
+    {
+        if (!Load()) return NotFound();
+        FillForm();
+        return Page();
+    }
+
+    public IActionResult OnPostDetails()
+    {
+        var r = organizations.UpdateDetails(Id, Name, Email ?? "", MaxUsers);
+        // keepForm: this is the one handler whose posted values belong in the form afterwards,
+        // so a rejected edit comes back for correcting instead of being silently reverted.
+        return Finish(r.Succeeded, "Details saved.", r.ErrorMessage, keepForm: true);
+    }
+
+    public IActionResult OnPostReset()
+    {
+        // Without this the service answers "User not found", which reads as a broken account
+        // rather than a forgotten click on Reset password.
+        if (ResetUserId == 0) return Finish(false, "", "Pick a user from the list above first.");
+
+        var r = organizations.ResetUserPassword(Id, ResetUserId, TempPassword ?? "");
+        // The password itself is deliberately not echoed back: the operator typed it, so
+        // repeating it buys nothing and would put it in the flash cookie in readable form.
+        return Finish(r.Succeeded,
+            "Password reset. They must change it the next time they sign in.", r.ErrorMessage);
+    }
+
+    public IActionResult OnPostRenew()
+    {
+        var r = subscriptions.Renew(Id);
+        return Finish(r.Succeeded, "Subscription renewed for 30 days.", r.ErrorMessage);
+    }
+
+    public IActionResult OnPostExpire()
+    {
+        var r = subscriptions.ExpireSubscription(Id);
+        return Finish(r.Succeeded, "Marked unpaid. Its users are locked out until renewed.", r.ErrorMessage);
+    }
+
+    public IActionResult OnPostSuspend()
+    {
+        var r = organizations.Suspend(Id);
+        return Finish(r.Succeeded, "Organisation suspended.", r.ErrorMessage);
+    }
+
+    public IActionResult OnPostActivate()
+    {
+        var r = organizations.Activate(Id);
+        return Finish(r.Succeeded, "Organisation reactivated.", r.ErrorMessage);
+    }
+
+    public IActionResult OnPostDelete()
+    {
+        if (!Load()) return NotFound();
+        // Typing the code is the guard. A misclick cannot destroy a tenant; only deliberately
+        // writing out its name can. Compared against the loaded code, never against a null one,
+        // so an empty box can never match.
+        if (!string.Equals(ConfirmCode?.Trim(), Org!.Code, StringComparison.OrdinalIgnoreCase))
+            return Finish(false, "", "Type the organisation code exactly to confirm deletion.");
+
+        var name = Org.Name;
+        var r = organizations.DeleteOrganization(Id);
+        if (!r.Succeeded) return Finish(false, "", r.ErrorMessage);
+
+        TempData["Flash"] = $"{name} and all of its data have been deleted.";
+        return RedirectToPage("/Platform/Index");
+    }
+
+    private IActionResult Finish(bool ok, string success, string? failure, bool keepForm = false)
+    {
+        if (ok)
+        {
+            TempData["Flash"] = success;
+            return RedirectToPage(new { id = Id });
+        }
+        Error = failure ?? "That did not work.";
+        if (Org is null) Load();
+        // Every form on the page posts to this one page model, so a failed password reset or
+        // suspend arrives with the details fields unbound - blank name and email, a cap of zero.
+        // Refilling them from the stored organisation stops that form rendering the empty shape
+        // of whichever other form was actually submitted.
+        if (!keepForm) FillForm();
+        return Page();
+    }
+
+    private void FillForm()
+    {
+        if (Org is null) return;
+        Name = Org.Name ?? "";
+        Email = Org.Email;
+        MaxUsers = Org.MaxUsers;
+    }
+
+    private bool Load()
+    {
+        var o = organizations.GetById(Id);
+        if (o.Failed) return false;
+        Org = o.Value;
+
+        var s = organizations.GetStats(Id);
+        if (s.Succeeded) Stats = s.Value;
+
+        var u = organizations.ListUsers(Id);
+        if (u.Succeeded) Users = u.Value;
+        return true;
+    }
+}

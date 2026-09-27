@@ -39,7 +39,7 @@
     <table class="table table-sm table-hover mb-0 align-middle">
         <thead><tr>
             <th>Name</th><th>Code</th><th>Plan</th><th>Status</th>
-            <th>Trial ends</th><th>Subscription ends</th><th>Users</th><th class="text-end">Actions</th>
+            <th>Trial ends</th><th>Subscription ends</th><th>Usage</th><th class="text-end">Actions</th>
         </tr></thead>
         <tbody>
         @foreach (var o in Model.Organizations)
@@ -52,34 +52,15 @@
                 _ => "danger"
             };
             <tr>
-                <td class="fw-semibold">@o.Name</td>
+                <td class="fw-semibold"><a asp-page="/Platform/Org" asp-route-id="@o.Id">@o.Name</a></td>
                 <td><code>@o.Code</code></td>
                 <td>@o.Plan</td>
                 <td><span class="badge bg-@badge">@status</span></td>
                 <td class="small">@(o.TrialEndsAtUtc?.ToString("yyyy-MM-dd") ?? "—")</td>
                 <td class="small">@(o.SubscriptionEndsAtUtc?.ToString("yyyy-MM-dd") ?? "—")</td>
-                <td class="small">max @o.MaxUsers</td>
+                <td class="small">@Model.UsageOf(o)</td>
                 <td class="text-end text-nowrap">
-                    <form method="post" asp-page-handler="Renew" asp-route-id="@o.Id" class="d-inline">
-                        <button class="btn btn-sm btn-link py-0">Renew 30d</button>
-                    </form>
-                    @if (o.IsActive)
-                    {
-                        <form method="post" asp-page-handler="Expire" asp-route-id="@o.Id" class="d-inline"
-                              onsubmit="return confirm('Mark @o.Name as unpaid? Its users will be locked out until you renew.');">
-                            <button class="btn btn-sm btn-link text-warning py-0">Mark unpaid</button>
-                        </form>
-                        <form method="post" asp-page-handler="Suspend" asp-route-id="@o.Id" class="d-inline"
-                              onsubmit="return confirm('Suspend @o.Name? Every one of its users is blocked immediately.');">
-                            <button class="btn btn-sm btn-link text-danger py-0">Suspend</button>
-                        </form>
-                    }
-                    else
-                    {
-                        <form method="post" asp-page-handler="Activate" asp-route-id="@o.Id" class="d-inline">
-                            <button class="btn btn-sm btn-link text-success py-0">Reactivate</button>
-                        </form>
-                    }
+                    <a asp-page="/Platform/Org" asp-route-id="@o.Id" class="btn btn-sm btn-link py-0">Manage</a>
                 </td>
             </tr>
         }

@@ -1,10 +1,31 @@
 Imports System.Linq
+Imports System.Linq.Expressions
 Imports GMS.Core.Abstractions
 Imports GMS.Core.Common
 Imports GMS.Core.Models
 Imports GMS.Core.Security
 
 Namespace Services
+
+    ''' <summary>What an organization contains, for the operator console's overview.</summary>
+    Public NotInheritable Class TenantStats
+        Public Property UserCount As Integer
+        Public Property ProductCount As Integer
+        Public Property TransactionCount As Integer
+        Public Property CustomerCount As Integer
+        Public Property LastSignInUtc As DateTime?
+    End Class
+
+    ''' <summary>A tenant's user as the system owner sees it. Never carries the password hash.</summary>
+    Public NotInheritable Class TenantUser
+        Public Property Id As Integer
+        Public Property UserName As String = String.Empty
+        Public Property FullName As String = String.Empty
+        Public Property RoleName As String = String.Empty
+        Public Property IsActive As Boolean
+        Public Property MustChangePassword As Boolean
+        Public Property LastLoginUtc As DateTime?
+    End Class
 
     Public Class OrganizationService
         Inherits ServiceBase
@@ -209,6 +230,184 @@ Namespace Services
 
             Return Result.Ok()
         End Function
+
+        ''' <summary>
+        ''' What an organization contains. Counts only - never its rows.
+        ''' </summary>
+        ''' <remarks>
+        ''' QueryAcrossTenants throughout: the system owner is looking at a tenant they do not
+        ''' belong to, which the tenant filter would otherwise scope away to nothing. Every
+        ''' query matches orgId explicitly, so one tenant's figures can never include another's.
+        ''' Counts and a sign-in date are deliberately all it returns; running the business is
+        ''' the tenant's job, and the owner has no reason to read their customers or takings.
+        '''
+        ''' Everything but UserCount reads zero against the in-memory store, and that is not a
+        ''' fault here. Services never set OrganizationId themselves - GmsDbContext stamps it on
+        ''' new rows in SaveChanges - and the in-memory store has no equivalent, so its products,
+        ''' customers and transactions all sit on organization 0. Users are counted correctly
+        ''' because onboarding assigns their organization explicitly. Judge these figures against
+        ''' PostgreSQL.
+        ''' </remarks>
+        Public Function GetStats(orgId As Integer) As Result(Of TenantStats)
+            If DeniedPlatform() Then Return Forbidden(Of TenantStats)()
+
+            Dim users = Uow.Repository(Of User)().QueryAcrossTenants().Where(Function(u) u.OrganizationId = orgId)
+            Dim stats As New TenantStats With {
+                .UserCount = users.Count(),
+                .ProductCount = Uow.Repository(Of Product)().QueryAcrossTenants().Count(Function(p) p.OrganizationId = orgId),
+                .TransactionCount = Uow.Repository(Of Transaction)().QueryAcrossTenants().Count(Function(t) t.OrganizationId = orgId),
+                .CustomerCount = Uow.Repository(Of Customer)().QueryAcrossTenants().Count(Function(c) c.OrganizationId = orgId),
+                .LastSignInUtc = users.Where(Function(u) u.LastLoginUtc.HasValue).
+                                       OrderByDescending(Function(u) u.LastLoginUtc).
+                                       Select(Function(u) u.LastLoginUtc).FirstOrDefault()
+            }
+            Return Result(Of TenantStats).Ok(stats)
+        End Function
+
+        ''' <summary>A tenant's users, so the owner can see who to reset when nobody can get in.</summary>
+        Public Function ListUsers(orgId As Integer) As Result(Of List(Of TenantUser))
+            If DeniedPlatform() Then Return Forbidden(Of List(Of TenantUser))()
+
+            Dim roles = Uow.Repository(Of Role)().Query().ToDictionary(Function(r) r.Id, Function(r) r.Name)
+            Dim list = Uow.Repository(Of User)().QueryAcrossTenants().
+                Where(Function(u) u.OrganizationId = orgId).
+                OrderBy(Function(u) u.UserName).
+                ToList().
+                Select(Function(u) New TenantUser With {
+                    .Id = u.Id,
+                    .UserName = u.UserName,
+                    .FullName = u.FullName,
+                    .RoleName = roles.GetValueOrDefault(u.RoleId, "-"),
+                    .IsActive = u.IsActive,
+                    .MustChangePassword = u.MustChangePassword,
+                    .LastLoginUtc = u.LastLoginUtc
+                }).ToList()
+
+            Return Result(Of List(Of TenantUser)).Ok(list)
+        End Function
+
+        ''' <summary>
+        ''' Sets a temporary password for one of a tenant's users and forces a change at their
+        ''' next sign-in.
+        ''' </summary>
+        ''' <remarks>
+        ''' There is no self-service reset, and a tenant's administrator cannot reset the very
+        ''' account they are locked out of - so without this the only way back in is writing a
+        ''' hash into the database by hand. MustChangePassword is not optional here: the
+        ''' temporary password passes through the owner, so it must not stay usable afterwards.
+        ''' </remarks>
+        Public Function ResetUserPassword(orgId As Integer, userId As Integer, temporaryPassword As String) As Result
+            If DeniedPlatform() Then Return Forbidden()
+
+            Dim errors = AuthService.ValidateNewPassword(temporaryPassword)
+            If errors.Any() Then Return Result.Fail(errors)
+
+            Dim repo = Uow.Repository(Of User)()
+            ' Matched on both ids, so naming a user from another tenant finds nothing rather
+            ' than resetting somebody else's password.
+            Dim user = repo.QueryAcrossTenants().
+                FirstOrDefault(Function(u) u.Id = userId AndAlso u.OrganizationId = orgId)
+            If user Is Nothing Then Return NotFound("User")
+
+            user.PasswordHash = New Pbkdf2PasswordHasher().Hash(temporaryPassword)
+            user.MustChangePassword = True
+            user.FailedLoginCount = 0
+            user.LockedOutUntilUtc = Nothing
+            user.UpdatedAtUtc = Clock.UtcNow
+            repo.Update(user)
+            Uow.SaveChanges()
+            Return Result.Ok()
+        End Function
+
+        ''' <summary>Rename an organization or change its contact address and user cap.</summary>
+        Public Function UpdateDetails(orgId As Integer, name As String, email As String, maxUsers As Integer) As Result
+            If DeniedPlatform() Then Return Forbidden()
+            If String.IsNullOrWhiteSpace(name) Then Return Result.Fail("Organization name is required.")
+            If maxUsers < 1 Then Return Result.Fail("The user cap must be at least 1.")
+
+            Dim repo = Uow.Repository(Of Organization)()
+            Dim org = repo.GetById(orgId)
+            If org Is Nothing Then Return NotFound("Organization")
+
+            ' Code is deliberately not editable: it is what a tenant's users type to sign in,
+            ' so changing it would lock every one of them out with no warning.
+            org.Name = name.Trim()
+            org.Email = If(email, String.Empty).Trim()
+            org.MaxUsers = maxUsers
+            org.UpdatedAtUtc = Clock.UtcNow
+            org.UpdatedByUserId = CurrentUser.UserId
+
+            repo.Update(org)
+            Uow.SaveChanges()
+            Return Result.Ok()
+        End Function
+
+        ''' <summary>
+        ''' Removes an organization and everything belonging to it.
+        ''' </summary>
+        ''' <remarks>
+        ''' Every child row is deleted here by hand rather than left to ON DELETE CASCADE.
+        ''' Cascades would cover most of it under PostgreSQL, but not all: transaction_lines
+        ''' has no organization_id, so the cascade from organizations never reaches it. And the
+        ''' in-memory store has no foreign keys at all, so a cascade-only delete would strand
+        ''' that tenant's users there while reporting success.
+        '''
+        ''' One SaveChanges at the end, so a failure part-way cannot leave a half-deleted
+        ''' tenant behind: EF Core wraps the batch in a transaction and orders the deletes from
+        ''' the relationships in the model.
+        '''
+        ''' Irreversible, and the caller is expected to have confirmed. The default
+        ''' organization is refused outright: it is the one the system itself was seeded
+        ''' around, and deleting it is not a recoverable mistake.
+        ''' </remarks>
+        Public Function DeleteOrganization(orgId As Integer) As Result
+            If DeniedPlatform() Then Return Forbidden()
+
+            Dim orgRepo = Uow.Repository(Of Organization)()
+            Dim org = orgRepo.GetById(orgId)
+            If org Is Nothing Then Return NotFound("Organization")
+            If String.Equals(org.Code, DataSeeder.DefaultOrganizationCode, StringComparison.OrdinalIgnoreCase) Then
+                Return Result.Fail("The default organization cannot be deleted.")
+            End If
+
+            ' transaction_lines is reached through its parent transactions, being the one table
+            ' belonging to a tenant that does not say so itself.
+            Dim txnIds = Uow.Repository(Of Transaction)().QueryAcrossTenants().
+                Where(Function(t) t.OrganizationId = orgId).Select(Function(t) t.Id).ToList()
+            Purge(Of TransactionLine)(Function(x) txnIds.Contains(x.TransactionId))
+
+            Purge(Of StockMovement)(Function(x) x.OrganizationId = orgId)
+            Purge(Of Transaction)(Function(x) x.OrganizationId = orgId)
+            Purge(Of Product)(Function(x) x.OrganizationId = orgId)
+            Purge(Of Category)(Function(x) x.OrganizationId = orgId)
+            Purge(Of Customer)(Function(x) x.OrganizationId = orgId)
+            Purge(Of Supplier)(Function(x) x.OrganizationId = orgId)
+            Purge(Of AuditEntry)(Function(x) x.OrganizationId = orgId)
+            Purge(Of Notification)(Function(x) x.OrganizationId = orgId)
+            Purge(Of AppSetting)(Function(x) x.OrganizationId = orgId)
+            Purge(Of Subscription)(Function(x) x.OrganizationId = orgId)
+            Purge(Of User)(Function(x) x.OrganizationId = orgId)
+
+            orgRepo.Remove(org)
+            Uow.SaveChanges()
+            Return Result.Ok()
+        End Function
+
+        ''' <summary>
+        ''' Marks every row matching <paramref name="match"/> for deletion, without saving.
+        ''' </summary>
+        ''' <remarks>
+        ''' The predicate is an expression so EF Core turns it into a WHERE clause; passing a
+        ''' compiled delegate instead would pull every tenant's rows into memory to filter them
+        ''' here. QueryAcrossTenants because the operator does not belong to the tenant being
+        ''' deleted, and each predicate re-establishes that scope itself.
+        ''' </remarks>
+        Private Sub Purge(Of T As Class)(match As Expression(Of Func(Of T, Boolean)))
+            Dim repo = Uow.Repository(Of T)()
+            For Each row In repo.QueryAcrossTenants().Where(match).ToList()
+                repo.Remove(row)
+            Next
+        End Sub
 
     End Class
 
