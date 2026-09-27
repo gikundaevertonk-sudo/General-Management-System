@@ -29,8 +29,18 @@ You need [NSIS](https://nsis.sourceforge.io/Download) installed; the build scrip
    (Get-FileHash .\GMS-Setup.exe -Algorithm SHA256).Hash
    ```
 4. Copy the file to `wwwroot/releases/GMS-Setup-<version>.exe` **on the server**.
-5. Add an entry at the top of `GMS.Web/releases.json` with the version, date, url, size, checksum
-   and notes written as what changed for the person using it.
+5. Replace the entry in `GMS.Web/releases.json` with the version, date, url, size, checksum and
+   notes written as what changed for the person using it.
+6. Delete the previous installer from `wwwroot/releases` on the server.
+
+Only the current release is listed. Keeping older ones meant a "previous versions" table that
+nobody used, two files to store per release, and a checksum to keep straight for each. If you ever
+need to offer a rollback, add the older entry back and put its file alongside — the page renders
+whatever is in the manifest.
+
+The page will not advertise a release whose installer is not actually in `wwwroot`; it skips it and
+logs a warning instead. So step 5 before step 4 is harmless — the version simply is not offered
+until the file lands.
 
 The download page reads `releases.json` at request time, so publishing is copying a file and
 editing that JSON. No redeploy.

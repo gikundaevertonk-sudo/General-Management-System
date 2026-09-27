@@ -18,27 +18,17 @@
   "product": "General Management System",
   "releases": [
     {
-      "version": "1.0.3",
+      "version": "1.0.4",
       "released": "2026-09-27",
-      "url": "/releases/GMS-Setup-1.0.3.exe",
-      "sizeBytes": 57792843,
-      "sha256": "2dbbdc24679cecd8ec90bb68f603779ef3de2ebff7f3dbcd6e3a98d6795c8942",
+      "url": "/releases/GMS-Setup-1.0.4.exe",
+      "sizeBytes": 57806686,
+      "sha256": "49ea0e84bf450ffc60328917c4ec6d8cbd4e10a037d53e5264f10062c52c5f65",
       "notes": [
-        "A sale can now be recorded for someone who is not on the customer list",
-        "One-off sales keep the buyer's name with the transaction, without creating a customer account",
-        "A transaction can be cancelled from the form it is open in, instead of going back to the list"
-      ]
-    },
-    {
-      "version": "1.0.2",
-      "released": "2026-09-26",
-      "url": "/releases/GMS-Setup-1.0.2.exe",
-      "sizeBytes": 57780379,
-      "sha256": "055a091ecc6a0189293a8e2aa23d36d3b3c300837f41e4b99b3815f8b94051b1",
-      "notes": [
-        "Switching back to light mode now restores every colour, not just some",
-        "The application icon now appears on windows, the taskbar and Alt-Tab",
-        "Signing in no longer locks the account for 15 minutes after five wrong attempts"
+        "An organisation's user limit is now enforced, so the number of users it pays for is the number it can create",
+        "Administrators are warned two days before their subscription ends, instead of finding out when they are locked out",
+        "Marking a subscription unpaid now takes effect immediately",
+        "A sale can be recorded for someone who is not on the customer list, keeping their name with the transaction",
+        "A transaction can be cancelled from the form it is open in"
       ]
     }
   ]
