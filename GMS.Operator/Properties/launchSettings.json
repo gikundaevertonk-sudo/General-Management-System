@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    // ASPNETCORE_ENVIRONMENT=Development is not decoration: user-secrets are loaded only in
+    // Development, and the console's connection string and operator credential both live there.
+    // Without this file `dotnet run` starts in Production, reads neither, and falls back to the
+    // empty in-memory store - which looks exactly like "the database has no organisations".
+    // Ports are deliberately not GMS.Web's (5232/7090) so both can run at once.
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "http://localhost:5240",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "https": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "applicationUrl": "https://localhost:7240;http://localhost:5240",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
