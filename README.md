@@ -11,7 +11,8 @@ web client sharing one business-logic library.
 | `GMS.Core` | VB.NET | Class library (`net10.0`) | All models, business rules, services. Every front end depends on this. |
 | `GMS.Desktop` | VB.NET | Windows Forms (`net10.0-windows`) | Native desktop client for a tenant. References `GMS.Core`. |
 | `GMS.Web` | C# | ASP.NET Core Razor Pages (`net10.0`) | Browser client for a tenant (ASP.NET Core has no VB template). References `GMS.Core`. |
-| `GMS.Operator` | C# | ASP.NET Core Razor Pages (`net10.0`) | The system owner's console: create, edit, suspend and delete organisations, reset any tenant user's password. **A separate application on purpose** — see [`GMS.Operator/README.md`](GMS.Operator/README.md). |
+| `GMS.Operator` | C# | ASP.NET Core Razor Pages (`net10.0`) | The system owner's console: create, edit, suspend and delete organisations, set subscriptions and user limits, reset any tenant user's password. **A separate application on purpose** — see [`GMS.Operator/README.md`](GMS.Operator/README.md). |
+| `GMS.Tests` | C# | xUnit (`net10.0`) | Business rules in `GMS.Core`: who may call what, trial and subscription arithmetic, stock movement, user limits. |
 
 `GMS.Web` and `GMS.Desktop` are what a customer gets. `GMS.Operator` is what you get, and it is
 deployed on its own host with its own credential — the console can read across every tenant and
@@ -21,7 +22,14 @@ Open `GeneralManagementSystem.slnx` in Visual Studio 2022 (17.10+) or build from
 
 ```bash
 dotnet build GeneralManagementSystem.slnx
+dotnet test GMS.Tests/GMS.Tests.csproj
 ```
+
+The tests run against the in-memory store, so read them narrowly. It stamps the current
+organisation on new rows exactly as `GmsDbContext` does, so writes land in the right tenant and
+counts per organisation are honest — but it does **not** filter reads or enforce foreign keys. A
+plain `Query()` there returns every tenant's rows, so nothing in the suite can prove one tenant's
+data is hidden from another. That has to be exercised against PostgreSQL.
 
 ## GMS.Core structure
 
@@ -37,8 +45,8 @@ Repositories/    InMemory/ (desktop/demo fallback) and Ef/ (PostgreSQL, backs GM
 Services/        AuthService, UserService, RoleService, CategoryService, ProductService,
                  CustomerService, SupplierService, TransactionService, InventoryService,
                  NotificationService, ReportService, DashboardService, SettingsService,
-                 AuditService, DataSeeder
-DependencyInjection/  AddGmsCore(), AddGmsCoreForTooling()
+                 AuditService, DataSeeder, OrganizationService, SubscriptionService
+DependencyInjection/  AddGmsCore() (in-memory), AddGmsCorePostgres(), AddGmsCoreForTooling()
 ```
 
 ### Design decisions
@@ -85,6 +93,14 @@ purchase and one sale, so dashboards and reports are not empty.
 2. **GMS.Desktop** — Windows Forms UI. ✅ *done, builds, smoke-tested*
 3. **GMS.Web** — Razor Pages UI + cookie authentication, responsive. ✅ *done, builds, HTTP-tested*
 4. **Persistence** — EF Core + Npgsql against Supabase Postgres. ✅ *done, HTTP- and DB-verified end to end*
+5. **GMS.Operator** — the owner's console, split out of `GMS.Web` so the tenant application has no
+   operator surface at all. ✅ *done, DB-verified end to end*
+6. **GMS.Tests** — xUnit over the service layer. ✅ *done, 61 cases*
+
+Not built, and deliberate for now: there is no payment provider. The operator records a
+subscription by hand — a plan, a start date, an end date, or no end at all — and a tenant whose
+subscription lapses waits for the operator to renew it rather than paying to restore access
+themselves. Their administrators are warned two days before it ends.
 
 ## Database (Supabase / PostgreSQL)
 
