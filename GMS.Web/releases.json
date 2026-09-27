@@ -18,6 +18,18 @@
   "product": "General Management System",
   "releases": [
     {
+      "version": "1.0.3",
+      "released": "2026-09-27",
+      "url": "/releases/GMS-Setup-1.0.3.exe",
+      "sizeBytes": 57792843,
+      "sha256": "2dbbdc24679cecd8ec90bb68f603779ef3de2ebff7f3dbcd6e3a98d6795c8942",
+      "notes": [
+        "A sale can now be recorded for someone who is not on the customer list",
+        "One-off sales keep the buyer's name with the transaction, without creating a customer account",
+        "A transaction can be cancelled from the form it is open in, instead of going back to the list"
+      ]
+    },
+    {
       "version": "1.0.2",
       "released": "2026-09-26",
       "url": "/releases/GMS-Setup-1.0.2.exe",
