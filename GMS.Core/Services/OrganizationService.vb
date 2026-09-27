@@ -101,15 +101,10 @@ Namespace Services
         End Function
 
         ''' <summary>Get organization by code.</summary>
-        Public Function GetByCode(code As String) As Result(Of Organization)
-            If String.IsNullOrWhiteSpace(code) Then Return NotFound(Of Organization)("Organization")
-
-            Dim orgRepo = Uow.Repository(Of Organization)()
-            Dim org = orgRepo.Query().FirstOrDefault(Function(o) o.Code.ToLower() = code.ToLower())
-
-            If org Is Nothing Then Return NotFound(Of Organization)("Organization")
-            Return Result(Of Organization).Ok(org)
-        End Function
+        ' GetByCode was removed. Nothing called it - sign-in resolves the organization itself, from
+        ' inside AuthService, where it can explain why a code was rejected. What was left was an
+        ' ungated lookup that would hand any organization to any caller who found it, which is not
+        ' something to leave lying around for someone to wire up later.
 
         ''' <summary>Get organization by ID (system owner only).</summary>
         Public Function GetById(id As Integer) As Result(Of Organization)
@@ -169,33 +164,11 @@ Namespace Services
             Return Not trialStillValid AndAlso Not subscriptionStillValid
         End Function
 
-        ''' <summary>Update organization plan and subscription end date.</summary>
-        Public Function UpdatePlan(orgId As Integer, plan As String, endsAt As DateTime) As Result
-            If DeniedPlatform() Then Return Forbidden()
-            If String.IsNullOrWhiteSpace(plan) Then Return Result.Fail("Plan is required.")
-
-            Dim orgRepo = Uow.Repository(Of Organization)()
-            Dim org = orgRepo.GetById(orgId)
-            If org Is Nothing Then Return NotFound("Organization")
-
-            org.Plan = plan
-            org.SubscriptionEndsAtUtc = endsAt
-            org.UpdatedAtUtc = Clock.UtcNow
-            org.UpdatedByUserId = CurrentUser.UserId
-
-            orgRepo.Update(org)
-
-            Dim subRepo = Uow.Repository(Of Subscription)()
-            Dim subscription = subRepo.Query().FirstOrDefault(Function(s) s.OrganizationId = orgId)
-            If subscription IsNot Nothing Then
-                subscription.Plan = plan
-                subscription.BillingCycleEndAtUtc = endsAt
-                subRepo.Update(subscription)
-            End If
-
-            Uow.SaveChanges()
-            Return Result.Ok()
-        End Function
+        ' UpdatePlan was removed. It set a plan and an end date and had never had a single caller;
+        ' SubscriptionService.SetSubscription does the same thing properly - it also keeps the
+        ' subscription row's start date, clears the stale trial date that would otherwise override
+        ' the expiry, and can record no end date at all. Two ways to write the same two columns, one
+        ' of them unreachable, is how they drift apart.
 
         ''' <summary>Suspend an organization (blocks all access).</summary>
         Public Function Suspend(orgId As Integer) As Result
@@ -262,6 +235,74 @@ Namespace Services
                                        Select(Function(u) u.LastLoginUtc).FirstOrDefault()
             }
             Return Result(Of TenantStats).Ok(stats)
+        End Function
+
+        ''' <summary>
+        ''' The same figures as <see cref="GetStats"/>, for every organization at once, keyed by id.
+        ''' </summary>
+        ''' <remarks>
+        ''' Five grouped queries for the whole list, however many tenants there are, rather than
+        ''' <see cref="GetStats"/> once per row - which was five queries per tenant, so fifty
+        ''' customers meant two hundred and fifty round trips to build one page. Over a connection
+        ''' pooler that is the difference between a page that opens and one that hangs.
+        '''
+        ''' An organization with nothing in it simply has no group to appear in, so callers must
+        ''' treat a missing key as zero rather than as unknown.
+        ''' </remarks>
+        Public Function ListStats() As Result(Of Dictionary(Of Integer, TenantStats))
+            If DeniedPlatform() Then Return Forbidden(Of Dictionary(Of Integer, TenantStats))()
+
+            Dim stats As New Dictionary(Of Integer, TenantStats)()
+            Dim entry = Function(orgId As Integer) As TenantStats
+                            Dim s As TenantStats = Nothing
+                            If Not stats.TryGetValue(orgId, s) Then
+                                s = New TenantStats()
+                                stats(orgId) = s
+                            End If
+                            Return s
+                        End Function
+
+            Dim users = Uow.Repository(Of User)().QueryAcrossTenants().
+                GroupBy(Function(u) u.OrganizationId).
+                Select(Function(g) New With {
+                    .OrgId = g.Key,
+                    .Total = g.Count(),
+                    .LastSignIn = g.Max(Function(u) u.LastLoginUtc)
+                }).ToList()
+            For Each row In users
+                Dim s = entry(row.OrgId)
+                s.UserCount = row.Total
+                s.LastSignInUtc = row.LastSignIn
+            Next
+
+            For Each row In CountBy(Of Product)(Function(p) p.OrganizationId)
+                entry(row.Key).ProductCount = row.Value
+            Next
+            For Each row In CountBy(Of Transaction)(Function(t) t.OrganizationId)
+                entry(row.Key).TransactionCount = row.Value
+            Next
+            For Each row In CountBy(Of Customer)(Function(c) c.OrganizationId)
+                entry(row.Key).CustomerCount = row.Value
+            Next
+
+            Return Result(Of Dictionary(Of Integer, TenantStats)).Ok(stats)
+        End Function
+
+        ''' <summary>
+        ''' Row counts per organization for one tenant-owned entity type.
+        ''' </summary>
+        ''' <remarks>
+        ''' The organization id is passed as an expression rather than reached through a shared
+        ''' interface, because the entities do not have one - OrganizationId is simply a property
+        ''' each declares for itself. An expression keeps the grouping on the database.
+        ''' </remarks>
+        Private Function CountBy(Of T As Class)(orgIdOf As Expression(Of Func(Of T, Integer))) _
+                                              As Dictionary(Of Integer, Integer)
+            Return Uow.Repository(Of T)().QueryAcrossTenants().
+                GroupBy(orgIdOf).
+                Select(Function(g) New With {.OrgId = g.Key, .Total = g.Count()}).
+                ToList().
+                ToDictionary(Function(r) r.OrgId, Function(r) r.Total)
         End Function
 
         ''' <summary>A tenant's users, so the owner can see who to reset when nobody can get in.</summary>

@@ -14,11 +14,13 @@ namespace GMS.Tests;
 /// Only the three ambient dependencies are swapped - who is asking, which tenant they are in, and
 /// what time it is - because those are exactly what a test needs to control.
 ///
-/// These run against the in-memory store, so read what they prove narrowly. It applies no tenant
-/// query filters and no foreign keys, so a test here cannot demonstrate that one tenant's rows are
-/// hidden from another; that has to be exercised against PostgreSQL. What these do cover is the
-/// business rules in GMS.Core: who is allowed to call what, subscription and trial arithmetic,
-/// stock checks, and validation.
+/// These run against the in-memory store, so read what they prove narrowly. That store now stamps
+/// the current organisation on new rows exactly as GmsDbContext does, so writes land in the right
+/// tenant and anything counting per organisation is honest here. What it still does not do is
+/// filter reads or enforce foreign keys: a plain Query() returns every tenant's rows, so a test
+/// here cannot show that one tenant's data is hidden from another, and that has to be exercised
+/// against PostgreSQL. What these cover is the business rules in GMS.Core: who may call what,
+/// subscription and trial arithmetic, stock checks, seat limits, and validation.
 /// </remarks>
 public sealed class TestHost : IDisposable
 {

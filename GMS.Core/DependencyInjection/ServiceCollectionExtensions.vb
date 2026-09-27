@@ -24,7 +24,13 @@ Namespace DependencyInjection
         Public Function AddGmsCore(services As IServiceCollection) As IServiceCollection
             AddCommon(services)
             services.TryAddSingleton(Of InMemoryDatabase)()
-            services.TryAddScoped(Of IUnitOfWork, InMemoryUnitOfWork)()
+            ' Built by hand rather than by type so ITenantContext can be optional: GetService
+            ' returns Nothing when a caller has not registered one, and the store then leaves
+            ' OrganizationId alone instead of failing to resolve a dependency it can live without.
+            services.TryAddScoped(Of IUnitOfWork)(
+                Function(sp) New InMemoryUnitOfWork(
+                    sp.GetRequiredService(Of InMemoryDatabase)(),
+                    sp.GetService(Of ITenantContext)()))
             Return services
         End Function
 

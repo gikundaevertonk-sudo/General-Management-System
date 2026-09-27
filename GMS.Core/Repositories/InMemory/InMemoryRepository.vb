@@ -1,4 +1,5 @@
 Imports System.Linq
+Imports System.Reflection
 Imports GMS.Core.Abstractions
 Imports GMS.Core.Models
 
@@ -10,10 +11,19 @@ Namespace Repositories.InMemory
 
         Private ReadOnly _db As InMemoryDatabase
         Private ReadOnly _items As List(Of T)
+        Private ReadOnly _tenant As ITenantContext
 
-        Public Sub New(db As InMemoryDatabase)
+        ''' <summary>
+        ''' The entity's OrganizationId property, or Nothing for types that have none. Resolved
+        ''' once per T rather than per row.
+        ''' </summary>
+        Private Shared ReadOnly OrganizationIdProperty As PropertyInfo =
+            GetType(T).GetProperty("OrganizationId", GetType(Integer))
+
+        Public Sub New(db As InMemoryDatabase, Optional tenant As ITenantContext = Nothing)
             _db = db
             _items = db.Set(Of T)()
+            _tenant = tenant
         End Sub
 
         Public Function GetById(id As Integer) As T Implements IRepository(Of T).GetById
@@ -46,6 +56,7 @@ Namespace Repositories.InMemory
         Public Sub Add(entity As T) Implements IRepository(Of T).Add
             SyncLock _db.SyncRoot
                 AssignId(entity)
+                StampTenant(entity)
                 _items.Add(entity)
             End SyncLock
         End Sub
@@ -54,6 +65,7 @@ Namespace Repositories.InMemory
             SyncLock _db.SyncRoot
                 For Each entity In entities
                     AssignId(entity)
+                    StampTenant(entity)
                     _items.Add(entity)
                 Next
             End SyncLock
@@ -77,6 +89,37 @@ Namespace Repositories.InMemory
             SyncLock _db.SyncRoot
                 _items.Remove(entity)
             End SyncLock
+        End Sub
+
+        ''' <summary>
+        ''' Puts the current organization on a new row that does not name one, mirroring
+        ''' <c>GmsDbContext.StampTenantOnNewRows</c>.
+        ''' </summary>
+        ''' <remarks>
+        ''' Without this the two stores disagree about something fundamental. Most services never
+        ''' set OrganizationId themselves - they rely on that stamp, which only exists on the EF
+        ''' path - so in this store their rows sat on organization 0 forever. Nothing complained,
+        ''' because this store applies no tenant filter either, so each tenant's own pages still
+        ''' listed them. But anything grouping or counting *by* organization read zero, and no test
+        ''' written against this store could show that one tenant's rows stay out of another's.
+        '''
+        ''' Only when the value is 0, exactly as EF does, so an explicit assignment always wins -
+        ''' onboarding sets it deliberately for a tenant that is not yet the current one.
+        '''
+        ''' A tenant that cannot be resolved leaves the value alone rather than throwing. EF would
+        ''' throw here, but there are no foreign keys in this store to be violated, and a
+        ''' database-free local run should not be brought down by a reminder or an audit row raised
+        ''' from outside any tenant.
+        ''' </remarks>
+        Private Sub StampTenant(entity As T)
+            If OrganizationIdProperty Is Nothing OrElse _tenant Is Nothing Then Return
+            If CInt(OrganizationIdProperty.GetValue(entity)) <> 0 Then Return
+
+            Try
+                OrganizationIdProperty.SetValue(entity, _tenant.OrganizationId)
+            Catch
+                ' No resolvable tenant. See above.
+            End Try
         End Sub
 
         Private Sub AssignId(entity As T)

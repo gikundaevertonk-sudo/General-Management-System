@@ -14,15 +14,22 @@ Namespace Repositories.InMemory
 
         Private ReadOnly _db As InMemoryDatabase
         Private ReadOnly _repositories As New ConcurrentDictionary(Of Type, Object)()
+        Private ReadOnly _tenant As ITenantContext
         Private _pendingChangeCount As Integer
 
-        Public Sub New(db As InMemoryDatabase)
+        ''' <summary>
+        ''' <paramref name="tenant"/> is optional so a caller with no tenant at all - a console tool,
+        ''' or AddGmsCoreForTooling - still works. Given one, new rows get the current organization
+        ''' stamped on them the way GmsDbContext does, so the two stores agree about tenancy.
+        ''' </summary>
+        Public Sub New(db As InMemoryDatabase, Optional tenant As ITenantContext = Nothing)
             _db = db
+            _tenant = tenant
         End Sub
 
         Public Function Repository(Of T As Class)() As IRepository(Of T) Implements IUnitOfWork.Repository
             Return DirectCast(
-                _repositories.GetOrAdd(GetType(T), Function(keyType) New TrackingRepository(Of T)(_db, AddressOf NoteChange)),
+                _repositories.GetOrAdd(GetType(T), Function(keyType) New TrackingRepository(Of T)(_db, _tenant, AddressOf NoteChange)),
                 IRepository(Of T))
         End Function
 
@@ -43,8 +50,8 @@ Namespace Repositories.InMemory
             Private ReadOnly _inner As InMemoryRepository(Of T)
             Private ReadOnly _onChange As Action
 
-            Public Sub New(db As InMemoryDatabase, onChange As Action)
-                _inner = New InMemoryRepository(Of T)(db)
+            Public Sub New(db As InMemoryDatabase, tenant As ITenantContext, onChange As Action)
+                _inner = New InMemoryRepository(Of T)(db, tenant)
                 _onChange = onChange
             End Sub
 

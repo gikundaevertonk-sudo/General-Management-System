@@ -14,12 +14,24 @@ public class IndexModel(OrganizationService organizations) : PageModel
     public string? Error { get; private set; }
 
     /// <summary>Counts per organisation, so a dead or unused tenant is visible at a glance.</summary>
-    private readonly Dictionary<int, TenantStats> _stats = [];
+    private Dictionary<int, TenantStats> _stats = [];
+
+    /// <summary>
+    /// Whether the counts were actually read. Distinguishes "this organisation has nothing in it"
+    /// from "we could not find out", which would otherwise look identical: ListStats groups rows,
+    /// so an organisation with none simply has no entry, and a failed read leaves every entry
+    /// missing. Reporting every tenant as broken because one query failed would be worse than
+    /// saying nothing.
+    /// </summary>
+    private bool _statsLoaded;
 
     public string UsageOf(Organization o)
     {
-        if (!_stats.TryGetValue(o.Id, out var s)) return $"max {o.MaxUsers}";
-        // No users means onboarding never finished - nobody can sign in to it at all.
+        if (!_statsLoaded) return $"max {o.MaxUsers}";
+
+        // No entry means no rows at all, which for users means onboarding never finished -
+        // nobody can sign in to it.
+        var s = _stats.GetValueOrDefault(o.Id) ?? new TenantStats();
         if (s.UserCount == 0) return "no users — broken";
         return $"{s.UserCount}/{o.MaxUsers} users · {s.TransactionCount} txns";
     }
@@ -44,13 +56,10 @@ public class IndexModel(OrganizationService organizations) : PageModel
         if (result.Succeeded) Organizations = result.Value;
         else { Error = result.ErrorMessage; return; }
 
-        // One round of counts per organisation. Fine at this scale - this is the tenant list,
-        // not a customer-facing page, and there are as many rows as you have customers.
-        _stats.Clear();
-        foreach (var o in Organizations)
-        {
-            var s = organizations.GetStats(o.Id);
-            if (s.Succeeded) _stats[o.Id] = s.Value;
-        }
+        // Five grouped queries for the whole list, not five per row. Calling GetStats in a loop
+        // here meant fifty customers cost two hundred and fifty round trips to render one page.
+        var stats = organizations.ListStats();
+        _statsLoaded = stats.Succeeded;
+        if (stats.Succeeded) _stats = stats.Value;
     }
 }
