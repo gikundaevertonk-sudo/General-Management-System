@@ -1,6 +1,6 @@
 using GMS.Core.Security;
 
-namespace GMS.Web.Auth;
+namespace GMS.Operator.Auth;
 
 /// <summary>
 /// The system owner's credentials, read from configuration under "Platform:Operator".

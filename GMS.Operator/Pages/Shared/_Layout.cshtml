@@ -1,6 +1,6 @@
-@* Deliberately not the tenant layout: that one renders the organization sidebar and calls
-   NotificationService.UnreadCountForCurrentUser(), which needs a tenant the operator does
-   not have. The console also wants to look nothing like a client's view of the system. *@
+@* The console's only layout. It shares nothing with the tenant application's - not even a
+   stylesheet - because the two are now separate applications, and the console should look
+   nothing like a client's view of the system. *@
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,14 +15,14 @@
 </head>
 <body class="bg-body-tertiary">
     <nav class="navbar navbar-expand px-3" style="background:#0b1220;">
-        <a class="navbar-brand fw-semibold text-white" asp-page="/Platform/Index">
+        <a class="navbar-brand fw-semibold text-white" asp-page="/Index">
             GMS <span class="badge bg-primary ms-1">Operator</span>
         </a>
         @if (User.Identity?.IsAuthenticated == true)
         {
             <div class="ms-auto d-flex align-items-center gap-3">
                 <span class="small" style="color:#94a3b8;">@User.Identity.Name</span>
-                <form method="post" asp-page="/Platform/Logout" class="m-0">
+                <form method="post" asp-page="/Logout" class="m-0">
                     <button class="btn btn-sm btn-outline-light">Sign out</button>
                 </form>
             </div>

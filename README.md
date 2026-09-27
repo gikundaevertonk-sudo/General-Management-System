@@ -8,9 +8,14 @@ web client sharing one business-logic library.
 
 | Project | Language | Type | Purpose |
 |---|---|---|---|
-| `GMS.Core` | VB.NET | Class library (`net10.0`) | All models, business rules, services. Both front ends depend on this. |
-| `GMS.Desktop` | VB.NET | Windows Forms (`net10.0-windows`) | Native desktop client. References `GMS.Core`. |
-| `GMS.Web` | C# | ASP.NET Core Razor Pages (`net10.0`) | Browser client (ASP.NET Core has no VB template). References `GMS.Core`. |
+| `GMS.Core` | VB.NET | Class library (`net10.0`) | All models, business rules, services. Every front end depends on this. |
+| `GMS.Desktop` | VB.NET | Windows Forms (`net10.0-windows`) | Native desktop client for a tenant. References `GMS.Core`. |
+| `GMS.Web` | C# | ASP.NET Core Razor Pages (`net10.0`) | Browser client for a tenant (ASP.NET Core has no VB template). References `GMS.Core`. |
+| `GMS.Operator` | C# | ASP.NET Core Razor Pages (`net10.0`) | The system owner's console: create, edit, suspend and delete organisations, reset any tenant user's password. **A separate application on purpose** — see [`GMS.Operator/README.md`](GMS.Operator/README.md). |
+
+`GMS.Web` and `GMS.Desktop` are what a customer gets. `GMS.Operator` is what you get, and it is
+deployed on its own host with its own credential — the console can read across every tenant and
+delete an organisation, so it is not a route inside the product tenants use.
 
 Open `GeneralManagementSystem.slnx` in Visual Studio 2022 (17.10+) or build from the CLI.
 

@@ -1,13 +1,13 @@
 using GMS.Core.Models;
 using GMS.Core.Services;
-using GMS.Web.Auth;
+
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace GMS.Web.Pages.Platform;
+namespace GMS.Operator.Pages;
 
-[Authorize(AuthenticationSchemes = PlatformAuth.Scheme, Policy = PlatformAuth.Policy)]
+[Authorize]
 public class OrgModel(OrganizationService organizations, SubscriptionService subscriptions) : PageModel
 {
     [BindProperty(SupportsGet = true)] public int Id { get; set; }
@@ -100,7 +100,7 @@ public class OrgModel(OrganizationService organizations, SubscriptionService sub
         if (!r.Succeeded) return Finish(false, "", r.ErrorMessage);
 
         TempData["Flash"] = $"{name} and all of its data have been deleted.";
-        return RedirectToPage("/Platform/Index");
+        return RedirectToPage("/Index");
     }
 
     private IActionResult Finish(bool ok, string success, string? failure, bool keepForm = false)

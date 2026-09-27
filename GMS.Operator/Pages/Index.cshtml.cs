@@ -1,13 +1,13 @@
 using GMS.Core.Models;
 using GMS.Core.Services;
-using GMS.Web.Auth;
+
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace GMS.Web.Pages.Platform;
+namespace GMS.Operator.Pages;
 
-[Authorize(AuthenticationSchemes = PlatformAuth.Scheme, Policy = PlatformAuth.Policy)]
+[Authorize]
 public class IndexModel(OrganizationService organizations) : PageModel
 {
     public IReadOnlyList<Organization> Organizations { get; private set; } = [];

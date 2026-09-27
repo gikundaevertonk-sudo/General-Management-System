@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- The system owner's console. A separate application from GMS.Web on purpose: the thing
+       that can read across every tenant, reset any password and delete an organisation must
+       not be a route inside the product those tenants use. Deployed on its own host, in its
+       own process, with its own cookie. -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>GMS.Operator</RootNamespace>
+    <!-- Its own secrets store, so the operator credential is never alongside the tenant
+         application's configuration. -->
+    <UserSecretsId>gms-operator-2f1c9a64-0f5b-4d1e-9a7c-6b2d84e3f510</UserSecretsId>
+    <Version>1.0.0.0</Version>
+    <InformationalVersion>1.0.0</InformationalVersion>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GMS.Core\GMS.Core.vbproj" />
+  </ItemGroup>
+
+</Project>

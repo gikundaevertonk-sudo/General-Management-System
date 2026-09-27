@@ -1,0 +1,19 @@
+@page
+@model GMS.Operator.Pages.ErrorModel
+@{ ViewData["Title"] = "Something went wrong"; }
+
+<div class="page-head">
+    <h1>Something went wrong</h1>
+    <a asp-page="/Index" class="btn btn-outline-secondary btn-sm">Back to organisations</a>
+</div>
+
+<div class="alert alert-danger">
+    The console hit an error handling that request. Nothing was reported as done that did not
+    happen — if you were part-way through a change, check it on the organisation's page before
+    trying again.
+</div>
+
+@if (Model.RequestId is not null)
+{
+    <p class="muted small">Request ID <code>@Model.RequestId</code></p>
+}

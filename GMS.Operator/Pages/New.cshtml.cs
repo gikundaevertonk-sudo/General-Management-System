@@ -1,12 +1,12 @@
 using GMS.Core.Services;
-using GMS.Web.Auth;
+
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace GMS.Web.Pages.Platform;
+namespace GMS.Operator.Pages;
 
-[Authorize(AuthenticationSchemes = PlatformAuth.Scheme, Policy = PlatformAuth.Policy)]
+[Authorize]
 public class NewModel(OrganizationService organizations) : PageModel
 {
     [BindProperty] public string Name { get; set; } = string.Empty;

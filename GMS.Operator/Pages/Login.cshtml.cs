@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using GMS.Web.Auth;
+using GMS.Operator.Auth;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Options;
 
-namespace GMS.Web.Pages.Platform;
+namespace GMS.Operator.Pages;
 
 [AllowAnonymous]
 public class LoginModel(IOptions<PlatformOperatorOptions> options) : PageModel
@@ -36,18 +36,18 @@ public class LoginModel(IOptions<PlatformOperatorOptions> options) : PageModel
             return Page();
         }
 
-        // The identity carries no organization claim and no permission claims - it is not a
-        // tenant user and must never be treated as one. WebCurrentUser.IsPlatformOperator keys
-        // off the scheme name below, not off anything in here.
+        // A name and nothing else. No organization claim and no permission claims, because the
+        // operator is not a tenant user and holds no authority inside anyone's organization -
+        // OperatorCurrentUser answers false to both and the services rely on that.
         var identity = new ClaimsIdentity(
             [new Claim(ClaimTypes.Name, _operator.UserName)],
-            PlatformAuth.Scheme);
+            CookieAuthenticationDefaults.AuthenticationScheme);
 
         await HttpContext.SignInAsync(
-            PlatformAuth.Scheme,
+            CookieAuthenticationDefaults.AuthenticationScheme,
             new ClaimsPrincipal(identity),
             new AuthenticationProperties { IsPersistent = false });
 
-        return RedirectToPage("/Platform/Index");
+        return RedirectToPage("/Index");
     }
 }

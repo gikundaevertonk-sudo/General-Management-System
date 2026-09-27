@@ -1,5 +1,5 @@
 @page "{id:int}"
-@model GMS.Web.Pages.Platform.OrgModel
+@model GMS.Operator.Pages.OrgModel
 @{ ViewData["Title"] = Model.Org?.Name ?? "Organisation"; }
 
 @if (Model.Org is null)
@@ -17,7 +17,7 @@ else
             <h1 class="mb-1">@o.Name <span class="badge bg-@badge align-middle">@status</span></h1>
             <div class="muted small">Code <code>@o.Code</code> · @o.Plan · @(string.IsNullOrWhiteSpace(o.Email) ? "no contact email" : o.Email)</div>
         </div>
-        <a asp-page="/Platform/Index" class="btn btn-outline-secondary btn-sm">Back</a>
+        <a asp-page="/Index" class="btn btn-outline-secondary btn-sm">Back</a>
     </div>
 
     @if (Model.Error is not null) { <div class="alert alert-danger">@Model.Error</div> }

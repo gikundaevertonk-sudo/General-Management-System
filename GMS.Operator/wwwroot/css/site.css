@@ -1,0 +1,23 @@
+/* The operator console's own stylesheet. Only the handful of classes its pages use - it does
+   not share GMS.Web's site.css, which carries the tenant application's theming, light/dark
+   switching and module tiles that have no meaning here. The console is dark-only. */
+
+:root {
+    --gms-muted: #9aa6b8;
+}
+
+.muted { color: var(--gms-muted); }
+
+.page-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.page-head h1 { font-size: 1.4rem; margin: 0; }
+
+.stat-card .stat-value { font-size: 1.6rem; font-weight: 600; }
+.stat-card .stat-label { color: var(--gms-muted); font-size: .85rem; }

@@ -15,16 +15,9 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AllowAnonymousToPage("/Error");
     // Customers need the installer before they have an account to sign in with.
     options.Conventions.AllowAnonymousToPage("/Download");
-    // No AllowAnonymousToFolder("/Platform") here, however tempting. That adds
-    // IAllowAnonymous to the endpoint metadata, which the authorization middleware honours
-    // ahead of any [Authorize] on the page - it would switch the console's own protection
-    // off. The operator pages carry [Authorize] naming the Platform scheme, and its policy
-    // is combined with the folder policy above rather than replacing it.
 });
 
 builder.Services.AddHttpContextAccessor();
-builder.Services.Configure<PlatformOperatorOptions>(
-    builder.Configuration.GetSection(PlatformOperatorOptions.Section));
 
 // GMS.Core service layer. Persistence is PostgreSQL (Supabase) when a connection string is
 // configured (ConnectionStrings:Gms via user-secrets/env), otherwise falls back to the
@@ -48,35 +41,17 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.ExpireTimeSpan = TimeSpan.FromHours(8);
         options.SlidingExpiration = true;
         options.Cookie.Name = "gms.auth";
-    })
-    // A second, independent cookie for the system owner. Separate scheme and separate cookie
-    // name: a tenant session can never be mistaken for an operator session, and signing in
-    // here does not sign you into any organization.
-    .AddCookie(PlatformAuth.Scheme, options =>
-    {
-        options.LoginPath = "/Platform/Login";
-        options.LogoutPath = "/Platform/Logout";
-        options.AccessDeniedPath = "/Platform/Login";
-        options.ExpireTimeSpan = TimeSpan.FromHours(4);
-        options.SlidingExpiration = true;
-        options.Cookie.Name = PlatformAuth.Cookie;
     });
 
+// One scheme, because this application serves tenants and nobody else. The system owner's
+// console is GMS.Operator, a separate application with its own process, host and cookie - the
+// thing that can read across every tenant and delete an organisation has no business being a
+// route in the product those tenants use. Nothing here can perform an operator action:
+// WebCurrentUser.IsPlatformOperator is false always, so ServiceBase.DeniedPlatform refuses
+// every cross-tenant call no matter what a bug in a page might attempt.
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 builder.Services.AddSingleton<IAuthorizationHandler, PermissionHandler>();
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy(PlatformAuth.Policy, policy =>
-    {
-        policy.AddAuthenticationSchemes(PlatformAuth.Scheme);
-        // Not RequireAuthenticatedUser(). This policy is combined with the site-wide one,
-        // and both schemes get authenticated into a single principal - so "is anyone signed
-        // in" would be satisfied by an ordinary tenant cookie. The identity must have come
-        // from the operator scheme specifically.
-        policy.RequireAssertion(context =>
-            context.User.Identities.Any(i => i.IsAuthenticated && i.AuthenticationType == PlatformAuth.Scheme));
-    });
-});
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 

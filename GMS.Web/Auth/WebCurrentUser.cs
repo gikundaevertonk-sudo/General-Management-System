@@ -37,12 +37,21 @@ public sealed class WebCurrentUser(IHttpContextAccessor accessor) : ICurrentUser
         IsSystemContext || (User?.IsInRole(roleName) ?? false);
 
     /// <summary>
-    /// True only when this request was authenticated by the operator cookie scheme. Not
-    /// derived from any claim a tenant identity could carry, so no permission granted inside
-    /// an organization can reach it.
+    /// Always false. This application has no operator surface at all.
     /// </summary>
-    public bool IsPlatformOperator =>
-        User?.Identities.Any(i => i.IsAuthenticated && i.AuthenticationType == PlatformAuth.Scheme) ?? false;
+    /// <remarks>
+    /// The system owner's console is GMS.Operator, a separate application. Nothing that reaches
+    /// across organizations - listing every tenant, resetting another tenant's password,
+    /// deleting an organization - is gated by a permission code; every one of them calls
+    /// ServiceBase.DeniedPlatform, which reads this. Returning a hard false therefore means no
+    /// bug anywhere in the tenant application can reach those operations, not even for a user
+    /// who has been granted every permission inside their own organization.
+    ///
+    /// Do not reintroduce a condition here. A claim, a role name or a configuration flag that
+    /// could flip it to true would put the operator's authority back inside the product tenants
+    /// use, which is the arrangement this was split apart to end.
+    /// </remarks>
+    public bool IsPlatformOperator => false;
 }
 
 /// <summary>Custom claim types used by the cookie identity.</summary>

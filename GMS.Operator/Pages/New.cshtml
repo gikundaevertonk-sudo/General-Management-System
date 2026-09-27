@@ -1,10 +1,10 @@
 @page
-@model GMS.Web.Pages.Platform.NewModel
+@model GMS.Operator.Pages.NewModel
 @{ ViewData["Title"] = "New organisation"; }
 
 <div class="page-head">
     <h1>New organisation</h1>
-    <a asp-page="/Platform/Index" class="btn btn-outline-secondary btn-sm">Back</a>
+    <a asp-page="/Index" class="btn btn-outline-secondary btn-sm">Back</a>
 </div>
 
 @if (Model.CreatedCode is not null)
@@ -15,8 +15,8 @@
             <p class="mb-3">A 30-day trial has started. Hand these details to the client:</p>
             <table class="table table-sm w-auto mb-3">
                 <tr><th class="pe-4">Organisation code</th><td><code>@Model.CreatedCode</code></td></tr>
-                <tr><th class="pe-4">Username</th><td><code>@GMS.Web.Pages.Platform.NewModel.SeededAdminUserName</code></td></tr>
-                <tr><th class="pe-4">Temporary password</th><td><code>@GMS.Web.Pages.Platform.NewModel.SeededAdminPassword</code></td></tr>
+                <tr><th class="pe-4">Username</th><td><code>@NewModel.SeededAdminUserName</code></td></tr>
+                <tr><th class="pe-4">Temporary password</th><td><code>@NewModel.SeededAdminPassword</code></td></tr>
             </table>
             <p class="muted small mb-0">
                 They will be forced to change the password on first sign-in. All three fields are
@@ -25,7 +25,7 @@
             </p>
         </div>
     </div>
-    <a asp-page="/Platform/New" class="btn btn-primary btn-sm">Create another</a>
+    <a asp-page="/New" class="btn btn-primary btn-sm">Create another</a>
 }
 else
 {

@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="GMS.Core/GMS.Core.vbproj" />
   <Project Path="GMS.Desktop/GMS.Desktop.vbproj" />
+  <Project Path="GMS.Operator/GMS.Operator.csproj" />
   <Project Path="GMS.Web/GMS.Web.csproj" />
 </Solution>

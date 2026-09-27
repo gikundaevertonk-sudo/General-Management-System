@@ -21,11 +21,10 @@ public class TrialExpiryMiddleware
     {
         var path = context.Request.Path.Value ?? string.Empty;
 
-        // Skip expiry checks for Account pages, Error, and Health endpoints. /Platform is the
-        // owner's console: it belongs to no tenant, so there is no trial to check, and it is
-        // how a lapsed organization gets renewed in the first place.
+        // Skip expiry checks for Account pages, Error, and Health endpoints. There is no
+        // /Platform exemption any more: the owner's console is GMS.Operator, a separate
+        // application, so no request reaching this middleware can belong to it.
         if (path.StartsWith("/Account/", StringComparison.OrdinalIgnoreCase) ||
-            path.StartsWith("/Platform", StringComparison.OrdinalIgnoreCase) ||
             path.StartsWith("/Error", StringComparison.OrdinalIgnoreCase) ||
             path == "/health")
         {

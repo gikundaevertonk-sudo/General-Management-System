@@ -1,0 +1,9 @@
+@using GMS.Operator
+@using GMS.Operator.Pages
+@using GMS.Core.Models
+@using GMS.Core.Services
+@namespace GMS.Operator.Pages
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@* Deliberately no ICurrentUser or NotificationService injection. GMS.Web's equivalent injects
+   NotificationService, which counts unread notifications for a tenant the operator does not
+   have. *@

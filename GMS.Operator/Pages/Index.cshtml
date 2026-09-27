@@ -1,10 +1,10 @@
 @page
-@model GMS.Web.Pages.Platform.IndexModel
+@model GMS.Operator.Pages.IndexModel
 @{ ViewData["Title"] = "Organisations"; }
 
 <div class="page-head">
     <h1>Organisations</h1>
-    <a asp-page="/Platform/New" class="btn btn-primary btn-sm">New organisation</a>
+    <a asp-page="/New" class="btn btn-primary btn-sm">New organisation</a>
 </div>
 
 @if (Model.Error is not null)
@@ -44,7 +44,7 @@
         <tbody>
         @foreach (var o in Model.Organizations)
         {
-            var status = GMS.Web.Pages.Platform.IndexModel.StatusOf(o);
+            var status = IndexModel.StatusOf(o);
             var badge = status switch
             {
                 "Active" => "success",
@@ -52,7 +52,7 @@
                 _ => "danger"
             };
             <tr>
-                <td class="fw-semibold"><a asp-page="/Platform/Org" asp-route-id="@o.Id">@o.Name</a></td>
+                <td class="fw-semibold"><a asp-page="/Org" asp-route-id="@o.Id">@o.Name</a></td>
                 <td><code>@o.Code</code></td>
                 <td>@o.Plan</td>
                 <td><span class="badge bg-@badge">@status</span></td>
@@ -60,7 +60,7 @@
                 <td class="small">@(o.SubscriptionEndsAtUtc?.ToString("yyyy-MM-dd") ?? "—")</td>
                 <td class="small">@Model.UsageOf(o)</td>
                 <td class="text-end text-nowrap">
-                    <a asp-page="/Platform/Org" asp-route-id="@o.Id" class="btn btn-sm btn-link py-0">Manage</a>
+                    <a asp-page="/Org" asp-route-id="@o.Id" class="btn btn-sm btn-link py-0">Manage</a>
                 </td>
             </tr>
         }
