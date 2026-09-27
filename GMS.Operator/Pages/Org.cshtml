@@ -64,10 +64,6 @@ else
                         <label asp-for="Email" class="form-label">Contact email</label>
                         <input asp-for="Email" class="form-control" />
                     </div>
-                    <div class="col-6">
-                        <label asp-for="MaxUsers" class="form-label">User cap</label>
-                        <input asp-for="MaxUsers" type="number" min="1" class="form-control" />
-                    </div>
                     <div class="col-12">
                         <button class="btn btn-primary btn-sm">Save details</button>
                         <span class="muted small ms-2">The code cannot be changed — its users sign in with it.</span>
@@ -167,6 +163,44 @@ else
         </div>
 
         <div class="col-lg-6">
+            <div class="card mb-4"><div class="card-header fw-semibold">Users allowed</div>
+            <div class="card-body">
+                @{
+                    var inUse = Model.Stats?.UserCount ?? 0;
+                    var seats = o.MaxUsers;
+                    var over = inUse > seats;
+                }
+                <p class="small mb-3">
+                    @if (over)
+                    {
+                        <span class="badge bg-warning text-dark">Over the limit</span>
+                        <span class="muted ms-1">
+                            @inUse users against a limit of @seats. Nobody is locked out, but no new
+                            user can be added until @(inUse - seats) are removed.
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary">@inUse of @seats used</span>
+                        <span class="muted ms-1">@(seats - inUse) place(s) free.</span>
+                    }
+                </p>
+                <form method="post" asp-page-handler="Seats" class="row g-2 align-items-end">
+                    <div class="col-6 col-sm-5">
+                        <label asp-for="SeatLimit" class="form-label mb-0 small">Users they pay for</label>
+                        <input asp-for="SeatLimit" type="number" min="1" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-6 col-sm-7">
+                        <button class="btn btn-sm btn-primary">Set the limit</button>
+                    </div>
+                    <div class="col-12"><div class="form-text">
+                        Enforced when they try to add a user, so this is what they are actually
+                        buying. Lowering it below what they already have is allowed — it records the
+                        change and stops them growing until they are back under it.
+                    </div></div>
+                </form>
+            </div></div>
+
             <div class="card mb-4"><div class="card-header fw-semibold">Users</div>
             <div class="table-responsive">
                 <table class="table table-sm mb-0 align-middle">

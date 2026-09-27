@@ -319,6 +319,40 @@ Namespace Services
             Return Result.Ok()
         End Function
 
+        ''' <summary>
+        ''' Sets how many users an organization is allowed. Returns how many it currently has, so
+        ''' the caller can say whether the new limit is already exceeded.
+        ''' </summary>
+        ''' <remarks>
+        ''' Its own method rather than part of <see cref="UpdateDetails"/>, because the two are
+        ''' answers to different questions - what the organization is called, and what it is paying
+        ''' for - and having one form post both is how a stale field silently overwrites the other.
+        '''
+        ''' A limit below the current head count is allowed, deliberately. A customer dropping from
+        ''' seven seats to five is a real thing to record, and refusing would leave the operator
+        ''' unable to write down what was actually agreed. The consequence is only that nobody new
+        ''' can be added until they are back under it - UserService.Create counts before it creates -
+        ''' so no existing user is locked out by this.
+        ''' </remarks>
+        Public Function SetUserLimit(orgId As Integer, maxUsers As Integer) As Result(Of Integer)
+            If DeniedPlatform() Then Return Forbidden(Of Integer)()
+            If maxUsers < 1 Then Return Result(Of Integer).Fail("The user limit must be at least 1.")
+
+            Dim repo = Uow.Repository(Of Organization)()
+            Dim org = repo.GetById(orgId)
+            If org Is Nothing Then Return NotFound(Of Integer)("Organization")
+
+            org.MaxUsers = maxUsers
+            org.UpdatedAtUtc = Clock.UtcNow
+            org.UpdatedByUserId = CurrentUser.UserId
+            repo.Update(org)
+            Uow.SaveChanges()
+
+            Dim inUse = Uow.Repository(Of User)().QueryAcrossTenants().
+                Count(Function(u) u.OrganizationId = orgId)
+            Return Result(Of Integer).Ok(inUse)
+        End Function
+
         ''' <summary>Rename an organization or change its contact address and user cap.</summary>
         Public Function UpdateDetails(orgId As Integer, name As String, email As String, maxUsers As Integer) As Result
             If DeniedPlatform() Then Return Forbidden()

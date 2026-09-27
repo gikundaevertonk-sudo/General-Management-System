@@ -19,10 +19,13 @@ public class OrgModel(OrganizationService organizations, SubscriptionService sub
     public IReadOnlyList<TenantUser> Users { get; private set; } = [];
     public string? Error { get; private set; }
 
-    // edit form
+    // edit form. The user limit is deliberately not here - it has its own form beside the user
+    // list, so editing a name cannot carry a stale seat count along with it.
     [BindProperty] public string Name { get; set; } = "";
     [BindProperty] public string? Email { get; set; }
-    [BindProperty] public int MaxUsers { get; set; }
+
+    // seats
+    [BindProperty] public int SeatLimit { get; set; }
 
     // reset form
     [BindProperty] public int ResetUserId { get; set; }
@@ -56,10 +59,26 @@ public class OrgModel(OrganizationService organizations, SubscriptionService sub
 
     public IActionResult OnPostDetails()
     {
-        var r = organizations.UpdateDetails(Id, Name, Email ?? "", MaxUsers);
+        // Loaded first because the existing limit is passed straight back through: seats are set by
+        // their own form, and this one must not be able to change them.
+        if (!Load()) return NotFound();
+        var r = organizations.UpdateDetails(Id, Name, Email ?? "", Org!.MaxUsers);
         // keepForm: this is the one handler whose posted values belong in the form afterwards,
         // so a rejected edit comes back for correcting instead of being silently reverted.
         return Finish(r.Succeeded, "Details saved.", r.ErrorMessage, keepForm: true);
+    }
+
+    public IActionResult OnPostSeats()
+    {
+        var r = organizations.SetUserLimit(Id, SeatLimit);
+        if (!r.Succeeded) return Finish(false, "", r.ErrorMessage);
+
+        var inUse = r.Value;
+        var message = inUse > SeatLimit
+            ? $"Limit set to {SeatLimit}. They currently have {inUse} users, so {inUse - SeatLimit} " +
+              "must be removed before anyone new can be added. Nobody has been locked out."
+            : $"Limit set to {SeatLimit}. {inUse} in use, {SeatLimit - inUse} spare.";
+        return Finish(true, message, null);
     }
 
     public IActionResult OnPostReset()
@@ -159,7 +178,7 @@ public class OrgModel(OrganizationService organizations, SubscriptionService sub
         if (Org is null) return;
         Name = Org.Name ?? "";
         Email = Org.Email;
-        MaxUsers = Org.MaxUsers;
+        SeatLimit = Org.MaxUsers;
 
         Plan = Org.Plan;
         // Whichever end date is in force, so the field shows what is actually being enforced

@@ -24,7 +24,7 @@ public class ExpiryWarningTests
             .SetSubscription(org.Id, "basic", host.Clock.UtcNow.AddDays(-10), ends).Succeeded);
         host.User.IsPlatformOperator = false;
         host.User.AllPermissions = true;
-        return host.Get<OrganizationService>() is var _ ? org : org;
+        return org;
     }
 
     private static int WarnedCount(TestHost host, int orgId)

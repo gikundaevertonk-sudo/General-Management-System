@@ -22,10 +22,9 @@
                             Released @latest.ReleasedDisplay@(latest.SizeDisplay.Length > 0 ? " · " + latest.SizeDisplay : "")
                         </div>
                     </div>
-                    @if (latest.HasFile)
-                    {
-                        <a class="btn btn-primary" href="@latest.Url" download>Download for Windows</a>
-                    }
+                    @* No guard needed: the page model only exposes releases whose installer is
+                       actually on the server, so anything reaching here can be downloaded. *@
+                    <a class="btn btn-primary" href="@latest.Url" download>Download for Windows</a>
                 </div>
 
                 @if (latest.Notes.Count > 0)
@@ -63,10 +62,7 @@
                         <td class="small">@r.ReleasedDisplay</td>
                         <td class="small">@r.SizeDisplay</td>
                         <td class="text-end">
-                            @if (r.HasFile)
-                            {
-                                <a class="btn btn-sm btn-link py-0" href="@r.Url" download>Download</a>
-                            }
+                            <a class="btn btn-sm btn-link py-0" href="@r.Url" download>Download</a>
                         </td>
                     </tr>
                 }
