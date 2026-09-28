@@ -37,5 +37,11 @@ public sealed class OperatorCurrentUser(IHttpContextAccessor accessor) : ICurren
 
     public bool IsInRole(string roleName) => false;
 
+    /// <summary>
+    /// Always null. Shops belong to a tenant, and the operator is not a member of one; the console
+    /// has no screen that works at a shop and nothing here should ever be scoped to one.
+    /// </summary>
+    public int? ShopId => null;
+
     public bool IsPlatformOperator => SignedIn;
 }

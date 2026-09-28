@@ -108,12 +108,13 @@ Namespace Services
             Next
         End Sub
 
-        Private Function SeedRoles() As (admin As Role, manager As Role, staff As Role)
+        Private Function SeedRoles() As (admin As Role, manager As Role, staff As Role, attendant As Role)
             Dim roleRepo = _uow.Repository(Of Role)()
 
             Dim admin = EnsureRole(roleRepo, "Admin", "Full access to every module.")
             Dim manager = EnsureRole(roleRepo, "Manager", "Day-to-day operations and reporting.")
             Dim staff = EnsureRole(roleRepo, "Staff", "Create transactions and view catalogue.")
+            Dim attendant = EnsureRole(roleRepo, "Shop Attendant", "Serves one shop: sells its stock and sees its figures.")
 
             ' Materialise the role IDs before anything references them: SetRolePermissions
             ' writes role_id into role_permissions, and SeedAdminUser writes it into users.
@@ -129,7 +130,8 @@ Namespace Services
                 PermissionCodes.Transactions.View, PermissionCodes.Transactions.Create,
                 PermissionCodes.Transactions.Confirm, PermissionCodes.Transactions.Cancel,
                 PermissionCodes.Inventory.View, PermissionCodes.Inventory.Adjust,
-                PermissionCodes.Reports.View, PermissionCodes.Audit.View
+                PermissionCodes.Reports.View, PermissionCodes.Audit.View,
+                PermissionCodes.Shops.View, PermissionCodes.Shops.Allocate
             })
 
             SetRolePermissions(staff, {
@@ -137,10 +139,23 @@ Namespace Services
                 PermissionCodes.Customers.View, PermissionCodes.Customers.Edit,
                 PermissionCodes.Suppliers.View,
                 PermissionCodes.Transactions.View, PermissionCodes.Transactions.Create,
-                PermissionCodes.Inventory.View
+                PermissionCodes.Inventory.View, PermissionCodes.Shops.View
             })
 
-            Return (admin, manager, staff)
+            ' A shop attendant holds ordinary counter permissions - including Confirm, because
+            ' completing the sale in front of the customer is the job. What makes them an
+            ' attendant is not this set but User.ShopId, which confines every one of these
+            ' permissions to their own shop. They cannot allocate: stock reaches a branch because
+            ' a manager sent it, never because the branch helped itself.
+            SetRolePermissions(attendant, {
+                PermissionCodes.Products.View, PermissionCodes.Categories.View,
+                PermissionCodes.Customers.View, PermissionCodes.Customers.Edit,
+                PermissionCodes.Transactions.View, PermissionCodes.Transactions.Create,
+                PermissionCodes.Transactions.Confirm,
+                PermissionCodes.Inventory.View, PermissionCodes.Shops.View
+            })
+
+            Return (admin, manager, staff, attendant)
         End Function
 
         Private Function EnsureRole(repo As IRepository(Of Role), name As String, description As String) As Role

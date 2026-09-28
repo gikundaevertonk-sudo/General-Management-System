@@ -104,6 +104,14 @@ public sealed class FakeCurrentUser : ICurrentUser
     public string UserName { get; set; } = "tester";
     public bool IsAuthenticated { get; set; } = true;
     public bool IsPlatformOperator { get; set; }
+
+    /// <summary>
+    /// Set this to pin the caller to one shop, as a shop attendant is. Independent of
+    /// <see cref="AllPermissions"/> on purpose: shop confinement is not a permission, so a test
+    /// has to be able to hold every permission and still be stuck in one shop.
+    /// </summary>
+    public int? ShopId { get; set; }
+
     public bool AllPermissions { get; set; }
     public HashSet<string> Permissions { get; } = new(StringComparer.OrdinalIgnoreCase);
     public HashSet<string> Roles { get; } = new(StringComparer.OrdinalIgnoreCase);

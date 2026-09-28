@@ -1,0 +1,107 @@
+@page
+@model GMS.Web.Pages.Shops.StockModel
+@{
+    var where = Model.Summary?.Name ?? "Stock";
+    ViewData["Title"] = where;
+    Layout = "_Layout";
+}
+
+<div class="page-head">
+    <h1>@where</h1>
+    <a asp-page="Index" class="btn btn-link btn-sm">Back to shops</a>
+</div>
+
+@if (Model.Summary is { } s)
+{
+    <div class="card mb-3"><div class="card-body d-flex flex-wrap gap-4">
+        <div><div class="muted small">Items</div><div class="fw-semibold">@s.SkuCount</div></div>
+        <div><div class="muted small">Units</div><div class="fw-semibold">@s.QuantityOnHand.ToString("N3")</div></div>
+        <div><div class="muted small">Value at cost</div><div class="fw-semibold">@s.StockValueAtCost.ToString("N2")</div></div>
+        @if (Model.ShopId is not null)
+        {
+            <div><div class="muted small">Staff</div><div class="fw-semibold">@s.StaffCount</div></div>
+        }
+        <div><div class="muted small">Below reorder</div><div class="fw-semibold">@s.LowStockCount</div></div>
+    </div></div>
+}
+
+<div class="row g-4">
+    <div class="@(Model.CanAllocate ? "col-lg-8" : "col-12")">
+        <form method="get" class="row g-2 mb-3">
+            <input type="hidden" name="shopId" value="@Model.ShopId" />
+            <div class="col-12 col-sm-6 col-md-5">
+                <input name="q" value="@Model.Q" class="form-control form-control-sm" placeholder="Search name or SKU…" />
+            </div>
+            <div class="col-auto"><button class="btn btn-outline-secondary btn-sm">Filter</button></div>
+        </form>
+
+        @if (Model.Held is { } held)
+        {
+            <div class="card"><div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead><tr><th>SKU</th><th>Product</th><th class="text-end">On hand</th><th class="text-end">Reorder at</th><th class="text-end">Value at cost</th></tr></thead>
+                    <tbody>
+                    @foreach (var row in held.Items)
+                    {
+                        <tr class="@(row.BelowReorderLevel ? "table-warning" : "")">
+                            <td class="muted">@row.Sku</td>
+                            <td>@row.ProductName</td>
+                            <td class="text-end">@row.QuantityOnHand.ToString("N3") <span class="muted">@row.UnitOfMeasure</span></td>
+                            <td class="text-end muted">@row.ReorderLevel.ToString("N3")</td>
+                            <td class="text-end">@row.ValueAtCost.ToString("N2")</td>
+                        </tr>
+                    }
+                    @if (held.Items.Count == 0)
+                    {
+                        <tr><td colspan="5" class="muted">Nothing is held here yet.</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div></div>
+
+            <nav class="mt-3 d-flex justify-content-between align-items-center">
+                <span class="muted small">Page @held.Page of @Math.Max(1, held.TotalPages) · @held.TotalCount</span>
+                <div class="btn-group btn-group-sm">
+                    <a class="btn btn-outline-secondary @(held.HasPrevious ? "" : "disabled")" asp-route-shopId="@Model.ShopId" asp-route-q="@Model.Q" asp-route-pageNo="@(held.Page - 1)">‹ Prev</a>
+                    <a class="btn btn-outline-secondary @(held.HasNext ? "" : "disabled")" asp-route-shopId="@Model.ShopId" asp-route-q="@Model.Q" asp-route-pageNo="@(held.Page + 1)">Next ›</a>
+                </div>
+            </nav>
+        }
+    </div>
+
+    @if (Model.CanAllocate)
+    {
+        <div class="col-lg-4">
+            <div class="card"><div class="card-body">
+                <h2 class="h6">Allocate stock</h2>
+                <p class="muted small">Moves stock out of @where. What the organisation owns in total does not change.</p>
+                @if (Model.DestinationOptions.Count == 0)
+                {
+                    <p class="muted small mb-0">There is nowhere to send stock to yet — add another shop first.</p>
+                }
+                else
+                {
+                    <form method="post" asp-page-handler="Allocate" asp-route-shopId="@Model.ShopId" asp-route-q="@Model.Q" asp-route-pageNo="@Model.PageNo" class="row g-2">
+                        <div class="col-12">
+                            <label asp-for="AllocateProductId" class="form-label">Product</label>
+                            <select asp-for="AllocateProductId" asp-items="Model.ProductOptions" class="form-select form-select-sm"></select>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="AllocateTo" class="form-label">Send to</label>
+                            <select asp-for="AllocateTo" asp-items="Model.DestinationOptions" class="form-select form-select-sm"></select>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="AllocateQty" class="form-label">Quantity</label>
+                            <input asp-for="AllocateQty" type="number" step="0.001" min="0.001" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="AllocateNote" class="form-label">Note</label>
+                            <input asp-for="AllocateNote" class="form-control form-control-sm" placeholder="Optional" />
+                        </div>
+                        <div class="col-12"><button class="btn btn-primary btn-sm">Allocate</button></div>
+                    </form>
+                }
+            </div></div>
+        </div>
+    }
+</div>

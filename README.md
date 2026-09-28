@@ -34,7 +34,7 @@ data is hidden from another. That has to be exercised against PostgreSQL.
 ## GMS.Core structure
 
 ```
-Models/          Domain entities (EntityBase / AuditableEntity + 15 entities)
+Models/          Domain entities (EntityBase / AuditableEntity + 17 entities)
 Enums/           TransactionType, TransactionStatus, StockMovement*, Notification*, AuditAction
 Common/          Result / Result(Of T), PagedResult(Of T), QueryOptions, Guard, ServiceException
 Abstractions/    IRepository(Of T), IUnitOfWork, ICurrentUser, IPasswordHasher, IClock
@@ -44,8 +44,9 @@ Data/            GmsDbContext (EF Core, maps to the existing Postgres schema, no
 Repositories/    InMemory/ (desktop/demo fallback) and Ef/ (PostgreSQL, backs GMS.Web)
 Services/        AuthService, UserService, RoleService, CategoryService, ProductService,
                  CustomerService, SupplierService, TransactionService, InventoryService,
-                 NotificationService, ReportService, DashboardService, SettingsService,
-                 AuditService, DataSeeder, OrganizationService, SubscriptionService
+                 ShopService, NotificationService, ReportService, DashboardService,
+                 SettingsService, AuditService, DataSeeder, OrganizationService,
+                 SubscriptionService
 DependencyInjection/  AddGmsCore() (in-memory), AddGmsCorePostgres(), AddGmsCoreForTooling()
 ```
 
@@ -56,10 +57,28 @@ DependencyInjection/  AddGmsCore() (in-memory), AddGmsCorePostgres(), AddGmsCore
   AdjustmentIn / AdjustmentOut) with `TransactionLine` rows.
 - **Stock is a ledger.** `StockMovement` is the immutable source of truth; `Product.QuantityOnHand`
   is a cache maintained **only** by `InventoryService`. `Reconcile` rebuilds the cache from the ledger.
-- **Transactions are immutable once `Confirmed`.** Confirm posts stock; Cancel writes compensating
-  movements. Multi-line sales are all-or-nothing on stock availability.
+- **Stock lives at a location.** An organisation can run many `Shop`s from one account. A movement
+  with no shop belongs to the *central pool*; one with a shop belongs to that branch, and
+  `ShopStock` caches the per-shop balance. Central is never stored — it is
+  `Product.QuantityOnHand` minus everything the shops hold, so the totals cannot drift apart.
+  An organisation with no shops behaves exactly as it did before shops existed. **Availability is
+  always checked at the location stock is leaving, never company-wide:** a branch that is short
+  must fail even when another branch has plenty.
+- **Allocation moves stock without creating or destroying it.** `InventoryService.Allocate`
+  writes a paired Out/In at two locations (`StockMovementReason.Allocation`), leaving
+  `Product.QuantityOnHand` untouched. An *adjustment* is the opposite: breakage really is lost,
+  so it moves both the location balance and the organisation total.
+- **Transactions are immutable once `Confirmed`.** Confirm posts stock at the transaction's own
+  `ShopId`; Cancel writes compensating movements there. Multi-line sales are all-or-nothing on
+  stock availability, totalled per product so two lines of the same item cannot overdraw together.
 - **RBAC:** one `Role` per user, role → many permissions (string codes in `PermissionCodes`).
-  Seeded roles: Admin, Manager, Staff.
+  Seeded roles: Admin, Manager, Staff, Shop Attendant.
+- **Shop confinement is a second axis of scope, not a permission.** `User.ShopId` pins an account
+  to one shop; it reaches services through `ICurrentUser.ShopId` and is checked *in addition to* a
+  permission code, never instead of one. A shop attendant holds ordinary counter permissions —
+  Confirm included, because completing the sale in front of the customer is the job — and simply
+  holds them at one location: their lists, ledger, dashboard and sales are all their shop's.
+  They cannot allocate, so stock reaches a branch because a manager sent it.
 - **Passwords:** PBKDF2-HMAC-SHA256, parameters stored with the hash. Never stored in plain text.
 - **Results:** services return `Result` / `Result(Of T)` (no exceptions for expected validation
   failures) and `PagedResult(Of T)` for lists.
@@ -82,7 +101,7 @@ DependencyInjection/  AddGmsCore() (in-memory), AddGmsCorePostgres(), AddGmsCore
 
 ### Seed data
 
-`DataSeeder.SeedBaseline()` — permissions, the three system roles, one administrator
+`DataSeeder.SeedBaseline()` — permissions, the four system roles, one administrator
 (`admin` / `ChangeMe#2026`, must change on first sign-in), default `AppSetting`s. Idempotent.
 `DataSeeder.SeedDemo(...)` — a few categories/products, one supplier, one customer, an opening-stock
 purchase and one sale, so dashboards and reports are not empty.
@@ -95,7 +114,9 @@ purchase and one sale, so dashboards and reports are not empty.
 4. **Persistence** — EF Core + Npgsql against Supabase Postgres. ✅ *done, HTTP- and DB-verified end to end*
 5. **GMS.Operator** — the owner's console, split out of `GMS.Web` so the tenant application has no
    operator surface at all. ✅ *done, DB-verified end to end*
-6. **GMS.Tests** — xUnit over the service layer. ✅ *done, 61 cases*
+6. **GMS.Tests** — xUnit over the service layer. ✅ *done, 82 cases*
+7. **Shops** — many trading locations per organisation, per-shop stock, manager allocation and
+   shop-attendant sign-in. ✅ *done in Core, GMS.Web and GMS.Desktop*
 
 Not built, and deliberate for now: there is no payment provider. The operator records a
 subscription by hand — a plan, a start date, an end date, or no end at all — and a tenant whose
@@ -105,10 +126,16 @@ themselves. Their administrators are warned two days before it ends.
 ## Database (Supabase / PostgreSQL)
 
 Schema lives in **`db/supabase/schema.sql`** (run once in the Supabase SQL Editor; idempotent,
-safe to re-run) — 14 snake_case tables, `GmsDbContext` maps to them via a runtime snake-case
-rename (no EF migrations; the schema is hand-owned). The optional seed block in that same file
-creates the 22 permissions, 3 system roles, the `admin` account and default settings; the app
-also seeds baseline data itself on start-up (idempotent either way).
+safe to re-run) — 18 snake_case tables, `GmsDbContext` maps to them via a runtime snake-case
+rename (no EF migrations; the schema is hand-owned). The file creates structure only; the
+25 permissions, 4 system roles, the `admin` account and default settings are seeded by the
+application itself on start-up (`DataSeeder.SeedBaseline`, idempotent).
+
+**Upgrading an existing database:** re-run the whole file. `CREATE TABLE IF NOT EXISTS` builds a
+new database but does nothing to one that already exists, so columns added after first release
+live in an *Upgrades* section of ALTER statements further down. They are nullable with no default,
+which is what makes them safe against live data — and for `shop_id`, NULL means "central pool",
+which is exactly what every row predating shops actually was.
 
 **Both** `GMS.Web` and `GMS.Desktop` connect to the same Supabase database via the
 `ConnectionStrings:Gms` config key. Sources, lowest priority to highest:
@@ -161,14 +188,20 @@ App/
   UiKit.vb            Shared control factories, colours, grid helpers, Result -> dialog
 Forms/                LoginForm, ChangePasswordForm, MainForm (sidebar shell),
                       ProductEditForm, CategoryEditForm, CustomerEditForm, SupplierEditForm,
-                      TransactionEditForm, UserEditForm/SetPasswordForm, StockAdjustForm
+                      TransactionEditForm, UserEditForm/SetPasswordForm, StockAdjustForm,
+                      ShopEditForm, StockAllocateForm
 Views/                ViewBase (page chrome) + DashboardView, ProductsView, CategoriesView,
-                      CustomersView, SuppliersView, TransactionsView, InventoryView, ReportsView,
-                      UsersView, NotificationsView, SettingsView, AuditView
+                      CustomersView, SuppliersView, TransactionsView, InventoryView, ShopsView,
+                      ReportsView, UsersView, NotificationsView, SettingsView, AuditView
 ```
 
+`ShopsView` is the desktop's central point for multiple locations: every location down the top
+grid (central first, then each shop) and what the selected one holds down the bottom, with
+**Allocate stock…** sending it somewhere else.
+
 The **dialog forms** (`LoginForm`, `ChangePasswordForm`, `ProductEditForm`, `UserEditForm`,
-`SetPasswordForm`, `StockAdjustForm`, `TransactionEditForm`) use the standard `*.vb` +
+`SetPasswordForm`, `StockAdjustForm`, `TransactionEditForm`, `ShopEditForm`,
+`StockAllocateForm`) use the standard `*.vb` +
 `*.Designer.vb` / `InitializeComponent()` pattern, so they **open in the Visual Studio Windows
 Forms designer**. The shell (`MainForm`) and the seven data-bound `Views/*` are built in code
 (runtime-dynamic layout) and are edited as code, not in the designer.
@@ -198,9 +231,14 @@ Auth/
 Pages/
   Account/  Login, ChangePassword, Logout
   Index (dashboard), Products/, Categories/, Customers/, Suppliers/, Transactions/,
-  Inventory/, Reports/, Users/, Notifications/, Settings/, Audit/
+  Inventory/, Shops/, Reports/, Users/, Notifications/, Settings/, Audit/
   Shared/_Layout.cshtml  responsive Bootstrap nav, permission-filtered links, unread-alerts badge
 ```
+
+`Shops/Index` is the central point — every shop with its staff count, items, units and stock
+value. `Shops/Stock` opens one location (no `shopId` is the central pool) and carries the
+allocation form. The sidebar names the signed-in user's shop when they are pinned to one, because
+everything they see is silently narrowed to it and an empty list should not read as missing data.
 
 Every folder requires authentication (`AuthorizeFolder("/")`); pages add
 `[Authorize("perm:<code>")]` for finer control, and services enforce permissions again server-side.
@@ -209,8 +247,15 @@ Every folder requires authentication (`AuthorizeFolder("/")`); pages add
 
 - No UI to create custom roles or edit a role's permission set — `RoleService.Create`/
   `SetPermissions` exist and both UIs show roles read-only (name, description, permission
-  count, user count). The 3 seeded roles (Admin/Manager/Staff) cover typical use; add a
-  permission-checkbox editor if a custom role is ever needed.
+  count, user count). The 4 seeded roles (Admin/Manager/Staff/Shop Attendant) cover typical use;
+  add a permission-checkbox editor if a custom role is ever needed.
+- A user belongs to **one** shop or to all of them; there is no "these three branches". A regional
+  manager is modelled as unpinned (whole organisation) today.
+- Low-stock notifications are raised against the organisation's total, not per shop. A branch
+  running out while another is overstocked shows on the Shops screen (its *Low* count) but does
+  not raise an alert.
+- Audit rows record who changed what, not where, so a shop attendant's dashboard shows no recent
+  activity at all rather than the whole organisation's.
 - Report export is CSV only (`ReportService.ToCsv`); PDF/Excel rendering is a front-end concern.
 - No audit `SaveChanges` interceptor (services call `AuditService.Record` explicitly) and no
   optimistic-concurrency handling.

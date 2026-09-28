@@ -33,7 +33,7 @@
 else if (Model.Users is { } u)
 {
     <div class="card"><div class="table-responsive"><table class="table table-sm table-hover mb-0 align-middle">
-        <thead><tr><th>Username</th><th>Full name</th><th>Email</th><th>Role</th><th>Active</th><th>Last sign-in (UTC)</th><th></th></tr></thead>
+        <thead><tr><th>Username</th><th>Full name</th><th>Email</th><th>Role</th>@if (Model.HasShops) { <th>Shop</th> }<th>Active</th><th>Last sign-in (UTC)</th><th></th></tr></thead>
         <tbody>
         @foreach (var user in u.Items)
         {
@@ -42,6 +42,10 @@ else if (Model.Users is { } u)
                 <td>@user.FullName</td>
                 <td>@user.Email</td>
                 <td>@Model.RoleNames.GetValueOrDefault(user.RoleId, "—")</td>
+                @if (Model.HasShops)
+                {
+                    <td>@(user.ShopId is int sid ? Model.ShopNames.GetValueOrDefault(sid, "—") : "All shops")</td>
+                }
                 <td>@(user.IsActive ? "Yes" : "No")</td>
                 <td class="muted">@(user.LastLoginUtc?.ToString("yyyy-MM-dd HH:mm") ?? "—")</td>
                 <td class="text-end text-nowrap">

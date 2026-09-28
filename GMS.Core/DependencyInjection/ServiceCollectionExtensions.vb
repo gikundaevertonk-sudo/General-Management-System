@@ -90,6 +90,7 @@ Namespace DependencyInjection
             services.AddScoped(Of ProductService)()
             services.AddScoped(Of CustomerService)()
             services.AddScoped(Of SupplierService)()
+            services.AddScoped(Of ShopService)()
             services.AddScoped(Of InventoryService)()
             services.AddScoped(Of NotificationService)()
             services.AddScoped(Of TransactionService)()

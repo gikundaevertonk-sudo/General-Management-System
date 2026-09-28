@@ -49,6 +49,8 @@ Namespace Data
         Public Property Permissions As DbSet(Of Permission)
         Public Property RolePermissions As DbSet(Of RolePermission)
         Public Property Users As DbSet(Of User)
+        Public Property Shops As DbSet(Of Shop)
+        Public Property ShopStocks As DbSet(Of ShopStock)
         Public Property Categories As DbSet(Of Category)
         Public Property Products As DbSet(Of Product)
         Public Property Suppliers As DbSet(Of Supplier)
@@ -69,6 +71,8 @@ Namespace Data
         Protected Overrides Sub OnModelCreating(b As ModelBuilder)
             ' Organization relationships
             b.Entity(Of Organization)().HasMany(Function(o) o.Users).WithOne(Function(u) u.Organization).HasForeignKey(Function(u) u.OrganizationId).OnDelete(DeleteBehavior.Cascade)
+            b.Entity(Of Organization)().HasMany(Function(o) o.Shops).WithOne(Function(s) s.Organization).HasForeignKey(Function(s) s.OrganizationId).OnDelete(DeleteBehavior.Cascade)
+            b.Entity(Of Organization)().HasMany(Function(o) o.ShopStocks).WithOne(Function(s) s.Organization).HasForeignKey(Function(s) s.OrganizationId).OnDelete(DeleteBehavior.Cascade)
             b.Entity(Of Organization)().HasMany(Function(o) o.Products).WithOne(Function(p) p.Organization).HasForeignKey(Function(p) p.OrganizationId).OnDelete(DeleteBehavior.Cascade)
             b.Entity(Of Organization)().HasMany(Function(o) o.Categories).WithOne(Function(c) c.Organization).HasForeignKey(Function(c) c.OrganizationId).OnDelete(DeleteBehavior.Cascade)
             b.Entity(Of Organization)().HasMany(Function(o) o.Suppliers).WithOne(Function(s) s.Organization).HasForeignKey(Function(s) s.OrganizationId).OnDelete(DeleteBehavior.Cascade)
@@ -95,6 +99,20 @@ Namespace Data
             b.Entity(Of User)().
                 HasOne(Function(u) u.Organization).WithMany(Function(o) o.Users).
                 HasForeignKey(Function(u) u.OrganizationId).OnDelete(DeleteBehavior.Cascade)
+
+            ' Restrict, not Cascade: closing a shop must never take its staff's accounts with it.
+            ' ShopService refuses to close a shop that still has people assigned, so in practice
+            ' this is the backstop for a row deleted outside the application.
+            b.Entity(Of User)().
+                HasOne(Function(u) u.Shop).WithMany().
+                HasForeignKey(Function(u) u.ShopId).OnDelete(DeleteBehavior.Restrict)
+
+            b.Entity(Of ShopStock)().
+                HasOne(Function(s) s.Shop).WithMany(Function(sh) sh.Stock).
+                HasForeignKey(Function(s) s.ShopId).OnDelete(DeleteBehavior.Cascade)
+            b.Entity(Of ShopStock)().
+                HasOne(Function(s) s.Product).WithMany().
+                HasForeignKey(Function(s) s.ProductId).OnDelete(DeleteBehavior.Cascade)
 
             b.Entity(Of Category)().
                 HasOne(Function(c) c.ParentCategory).WithMany(Function(c) c.Children).
@@ -124,12 +142,23 @@ Namespace Data
             b.Entity(Of StockMovement)().
                 HasOne(Function(m) m.TransactionLine).WithMany().
                 HasForeignKey(Function(m) m.TransactionLineId).OnDelete(DeleteBehavior.SetNull)
+            ' SetNull, not Restrict: the ledger outlives the shop it happened at. A deleted shop
+            ' leaves its movements reading as central, which is where that stock has to have gone.
+            b.Entity(Of StockMovement)().
+                HasOne(Function(m) m.Shop).WithMany().
+                HasForeignKey(Function(m) m.ShopId).OnDelete(DeleteBehavior.SetNull)
             b.Entity(Of StockMovement)().Ignore(Function(m) m.SignedQuantity)
+
+            b.Entity(Of Transaction)().
+                HasOne(Function(t) t.Shop).WithMany().
+                HasForeignKey(Function(t) t.ShopId).OnDelete(DeleteBehavior.SetNull)
 
             b.Entity(Of AuditEntry)().Property(Function(a) a.ChangesJson).HasColumnType("jsonb")
 
             ' Global query filters for multi-tenancy: automatically filter all tenant-scoped entities
             b.Entity(Of User)().HasQueryFilter(Function(u) u.OrganizationId = CurrentTenantId)
+            b.Entity(Of Shop)().HasQueryFilter(Function(s) s.OrganizationId = CurrentTenantId)
+            b.Entity(Of ShopStock)().HasQueryFilter(Function(s) s.OrganizationId = CurrentTenantId)
             b.Entity(Of Category)().HasQueryFilter(Function(c) c.OrganizationId = CurrentTenantId)
             b.Entity(Of Product)().HasQueryFilter(Function(p) p.OrganizationId = CurrentTenantId)
             b.Entity(Of Supplier)().HasQueryFilter(Function(s) s.OrganizationId = CurrentTenantId)

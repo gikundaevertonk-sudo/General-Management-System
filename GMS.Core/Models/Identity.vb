@@ -44,6 +44,20 @@ Namespace Models
         Public Property Role As Role
         Public Property OrganizationId As Integer ' Multi-tenant: users belong to one organization
         Public Property Organization As Organization
+
+        ''' <summary>
+        ''' The one shop this account works at, or <c>Nothing</c> for organization-wide access.
+        ''' </summary>
+        ''' <remarks>
+        ''' This is a confinement, not a permission. A shop attendant is pinned here so that every
+        ''' list they see, every sale they raise and every balance they read is their shop's;
+        ''' owners, administrators and managers leave it empty and see the whole organization.
+        ''' Services read it through <see cref="Abstractions.ICurrentUser.ShopId"/> rather than
+        ''' from this column, so the confinement travels with the signed-in principal.
+        ''' </remarks>
+        Public Property ShopId As Integer?
+        Public Property Shop As Shop
+
         Public Property IsActive As Boolean = True
         ''' <summary>Forces a password change on next successful sign-in.</summary>
         Public Property MustChangePassword As Boolean

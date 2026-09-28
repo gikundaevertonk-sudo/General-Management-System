@@ -17,6 +17,8 @@ Namespace Models
         ' Navigation property
         Public Property Subscription As Subscription
         Public Property Users As ICollection(Of User) = New List(Of User)()
+        Public Property Shops As ICollection(Of Shop) = New List(Of Shop)()
+        Public Property ShopStocks As ICollection(Of ShopStock) = New List(Of ShopStock)()
         Public Property Products As ICollection(Of Product) = New List(Of Product)()
         Public Property Categories As ICollection(Of Category) = New List(Of Category)()
         Public Property Suppliers As ICollection(Of Supplier) = New List(Of Supplier)()

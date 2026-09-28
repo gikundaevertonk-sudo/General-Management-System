@@ -32,6 +32,46 @@ Namespace Services
             Return Not CurrentUser.IsPlatformOperator
         End Function
 
+        ''' <summary>The shop the caller is confined to, or Nothing for organization-wide access.</summary>
+        Protected ReadOnly Property PinnedShopId As Integer?
+            Get
+                Return CurrentUser.ShopId
+            End Get
+        End Property
+
+        ''' <summary>
+        ''' The shop a call should act on: the caller's own when they are pinned to one,
+        ''' otherwise whatever they asked for.
+        ''' </summary>
+        ''' <remarks>
+        ''' A pinned caller's request is overridden rather than rejected, so a shared page that
+        ''' offers a shop picker to a manager simply loses the choice for an attendant instead of
+        ''' erroring. Anything that must refuse a mismatch outright - reading back a document that
+        ''' already names a different shop - calls <see cref="OutsideShopScope"/> instead.
+        ''' </remarks>
+        Protected Function ResolveShopScope(requested As Integer?) As Integer?
+            Dim pinned = PinnedShopId
+            Return If(pinned.HasValue, pinned, requested)
+        End Function
+
+        ''' <summary>
+        ''' True when <paramref name="shopId"/> is not the caller's shop. Always false for a
+        ''' caller who is not pinned to one.
+        ''' </summary>
+        Protected Function OutsideShopScope(shopId As Integer?) As Boolean
+            Dim pinned = PinnedShopId
+            If Not pinned.HasValue Then Return False
+            Return Not shopId.HasValue OrElse shopId.Value <> pinned.Value
+        End Function
+
+        Protected Shared Function ForbiddenShop() As Result
+            Return Result.Fail("That belongs to another shop.")
+        End Function
+
+        Protected Shared Function ForbiddenShop(Of T)() As Result(Of T)
+            Return Result(Of T).Fail("That belongs to another shop.")
+        End Function
+
         Protected Shared Function Forbidden() As Result
             Return Result.Fail("You do not have permission to perform this action.")
         End Function

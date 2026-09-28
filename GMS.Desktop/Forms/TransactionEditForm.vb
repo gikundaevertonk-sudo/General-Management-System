@@ -34,8 +34,33 @@ Namespace Forms
             _txnId = transactionId
 
             LoadProducts()
+            LoadShops()
             If transactionId.HasValue Then LoadExisting(transactionId.Value)
             UpdateEnabled()
+        End Sub
+
+        ''' <summary>
+        ''' Fills the shop picker, hiding it when there is no choice to make: an organisation with
+        ''' no shops, or an attendant whose document is always their own shop's whatever is picked.
+        ''' </summary>
+        Private Sub LoadShops()
+            cboShop.DisplayMember = "Text"
+            cboShop.ValueMember = "Value"
+
+            Dim pinned = AppHost.Current.Session.Principal.ShopId
+            Dim res = AppHost.Current.Resolve(Of ShopService)().List()
+            Dim shops As IReadOnlyList(Of Shop) = If(res.Succeeded, res.Value, New List(Of Shop)())
+
+            If pinned.HasValue OrElse shops.Count = 0 Then
+                lblShop.Visible = False
+                cboShop.Visible = False
+                Return
+            End If
+
+            ' 0 stands for central, because a ComboBox value cannot be Nothing and round-trip.
+            Dim choices As New List(Of Object) From {New With {.Value = 0, .Text = "Central"}}
+            choices.AddRange(shops.Select(Function(s) CObj(New With {.Value = s.Id, .Text = s.Name})))
+            cboShop.DataSource = choices
         End Sub
 
         Private Sub LoadProducts()
@@ -94,8 +119,12 @@ Namespace Forms
                 End If
             End If
 
+            Dim shopChoice = 0
+            If cboShop.Visible Then Integer.TryParse(Convert.ToString(cboShop.SelectedValue), shopChoice)
+            Dim shopId As Integer? = If(shopChoice = 0, CType(Nothing, Integer?), shopChoice)
+
             Dim result = AppHost.Current.Resolve(Of TransactionService)().
-                CreateDraft(_type, partyId, dtpDate.Value.Date, txtNotes.Text, walkIn)
+                CreateDraft(_type, partyId, dtpDate.Value.Date, txtNotes.Text, walkIn, shopId)
             If result.Failed Then
                 lblError.Text = result.ErrorMessage
                 Return
@@ -121,6 +150,7 @@ Namespace Forms
             Text = $"{t.TransactionNumber} ({t.Status.ToString().ToLower()})"
             LoadPartyChoices()
             cboParty.SelectedValue = If(t.CustomerId, If(t.SupplierId, 0))
+            If cboShop.Visible Then cboShop.SelectedValue = If(t.ShopId, 0)
             dtpDate.Value = t.TransactionDate.Date
             txtNotes.Text = t.Notes
             RefreshLines(t)
@@ -229,6 +259,9 @@ Namespace Forms
             btnStart.Visible = Not started
             cboParty.Enabled = Not started AndAlso cboParty.Enabled
             txtWalkIn.Enabled = Not started
+            ' Fixed once the draft exists: it is the location Confirm will move stock at, and the
+            ' lines already added were priced and checked against it.
+            cboShop.Enabled = Not started
             dtpDate.Enabled = Not started
             txtNotes.Enabled = Not started
 

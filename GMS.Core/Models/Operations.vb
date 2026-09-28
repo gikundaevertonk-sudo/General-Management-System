@@ -17,6 +17,18 @@ Namespace Models
         Public Property Status As TransactionStatus = TransactionStatus.Draft
         Public Property TransactionDate As DateTime
 
+        ''' <summary>
+        ''' The shop this document belongs to, or <c>Nothing</c> for the central pool.
+        ''' </summary>
+        ''' <remarks>
+        ''' Decided when the draft is created and fixed from then on, because it is the location
+        ''' whose stock <c>Confirm</c> will move: a sale raised at a shop must fail when that shop
+        ''' is short, even if another shop has plenty. Changing it after lines exist would silently
+        ''' re-point those lines at a different balance, so it is not editable.
+        ''' </remarks>
+        Public Property ShopId As Integer?
+        Public Property Shop As Shop
+
         Public Property CustomerId As Integer?
         Public Property Customer As Customer
         Public Property SupplierId As Integer?
@@ -65,11 +77,22 @@ Namespace Models
         Public Property TransactionLineId As Integer?
         Public Property TransactionLine As TransactionLine
 
+        ''' <summary>The location this movement happened at; <c>Nothing</c> is the central pool.</summary>
+        ''' <remarks>
+        ''' Null for every row written before shops existed, which is correct rather than merely
+        ''' convenient: an organization that never had a shop kept all of its stock centrally.
+        ''' </remarks>
+        Public Property ShopId As Integer?
+        Public Property Shop As Shop
+
         Public Property Direction As StockMovementDirection
         Public Property Reason As StockMovementReason
         ''' <summary>Always positive; combine with <c>Direction</c> for the signed effect.</summary>
         Public Property Quantity As Decimal
-        ''' <summary>Product quantity on hand immediately after this movement was applied.</summary>
+        ''' <summary>
+        ''' Balance at <see cref="ShopId"/> immediately after this movement was applied - the
+        ''' shop's own quantity, or the central remainder when no shop is named.
+        ''' </summary>
         Public Property QuantityAfter As Decimal
         Public Property Note As String = String.Empty
         Public Property MovedAtUtc As DateTime

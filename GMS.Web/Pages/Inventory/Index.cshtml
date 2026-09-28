@@ -15,24 +15,54 @@
     @if (Model.Selected is { } p)
     {
         <div class="col-auto d-flex align-items-center muted">
-            On hand: <strong class="ms-1">@p.QuantityOnHand.ToString("N3")</strong> <span class="ms-1">@p.UnitOfMeasure</span>
+            @(Model.HasShops ? "Across the organisation:" : "On hand:")
+            <strong class="ms-1">@p.QuantityOnHand.ToString("N3")</strong> <span class="ms-1">@p.UnitOfMeasure</span>
         </div>
     }
 </form>
 
 @if (Model.Selected is not null)
 {
+    @if (Model.Distribution.Count > 0)
+    {
+        <div class="card mb-3">
+            <div class="card-header fw-semibold">Where it is</div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0 align-middle">
+                    <thead><tr><th>Location</th><th class="text-end">On hand</th><th class="text-end">Reorder at</th><th></th></tr></thead>
+                    <tbody>
+                    @foreach (var row in Model.Distribution)
+                    {
+                        <tr class="@(row.BelowReorderLevel ? "table-warning" : "")">
+                            <td>@row.Location</td>
+                            <td class="text-end">@row.QuantityOnHand.ToString("N3")</td>
+                            <td class="text-end muted">@row.ReorderLevel.ToString("N3")</td>
+                            <td class="text-end">
+                                @if (Me.HasPermission(PermissionCodes.Shops.View))
+                                {
+                                    <a asp-page="/Shops/Stock" asp-route-shopId="@row.ShopId" class="btn btn-sm btn-link py-0">Open</a>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
     <div class="row g-4">
         <div class="col-lg-8">
             <div class="card"><div class="card-header fw-semibold">Stock ledger</div>
             <div class="table-responsive">
                 <table class="table table-sm mb-0">
-                    <thead><tr><th>When (UTC)</th><th>Direction</th><th>Reason</th><th class="text-end">Qty</th><th class="text-end">Balance</th><th>Reference</th><th>Note</th></tr></thead>
+                    <thead><tr><th>When (UTC)</th>@if (Model.HasShops) { <th>Location</th> }<th>Direction</th><th>Reason</th><th class="text-end">Qty</th><th class="text-end">Balance</th><th>Reference</th><th>Note</th></tr></thead>
                     <tbody>
                     @foreach (var m in Model.Ledger?.Items ?? Array.Empty<StockLedgerRow>())
                     {
                         <tr>
                             <td class="muted">@m.MovedAtUtc.ToString("yyyy-MM-dd HH:mm")</td>
+                            @if (Model.HasShops) { <td>@m.Location</td> }
                             <td>@m.Direction</td>
                             <td>@m.Reason</td>
                             <td class="text-end">@m.Quantity.ToString("N3")</td>
@@ -41,7 +71,7 @@
                             <td>@m.Note</td>
                         </tr>
                     }
-                    @if ((Model.Ledger?.Items.Count ?? 0) == 0) { <tr><td colspan="7" class="muted">No movements yet.</td></tr> }
+                    @if ((Model.Ledger?.Items.Count ?? 0) == 0) { <tr><td colspan="@(Model.HasShops ? 8 : 7)" class="muted">No movements yet.</td></tr> }
                     </tbody>
                 </table>
             </div></div>
@@ -53,6 +83,13 @@
                 <div class="card"><div class="card-body">
                     <h2 class="h6">Adjust stock</h2>
                     <form method="post" asp-page-handler="Adjust" asp-route-productId="@Model.ProductId" class="row g-2">
+                        @if (Model.HasShops && !Model.IsPinned)
+                        {
+                            <div class="col-12">
+                                <label asp-for="AdjustAt" class="form-label">Location</label>
+                                <select asp-for="AdjustAt" asp-items="Model.LocationOptions" class="form-select form-select-sm"></select>
+                            </div>
+                        }
                         <div class="col-12">
                             <label asp-for="Direction" class="form-label">Direction</label>
                             <select asp-for="Direction" class="form-select form-select-sm">
@@ -64,6 +101,13 @@
                         <div class="col-12"><label asp-for="Note" class="form-label">Reason / note</label><input asp-for="Note" class="form-control form-control-sm" /></div>
                         <div class="col-12"><button class="btn btn-primary btn-sm">Apply</button></div>
                     </form>
+                    @if (Model.HasShops)
+                    {
+                        <p class="muted small mt-2 mb-0">
+                            An adjustment changes how much the organisation owns. To move stock between
+                            locations, use <a asp-page="/Shops/Index">Shops</a> instead.
+                        </p>
+                    }
                 </div></div>
             </div>
         }

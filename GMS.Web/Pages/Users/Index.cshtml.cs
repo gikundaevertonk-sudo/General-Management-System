@@ -8,13 +8,17 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 namespace GMS.Web.Pages.Users;
 
 [Authorize("perm:users.view")]
-public class IndexModel(UserService users, RoleService roles) : PageModel
+public class IndexModel(UserService users, RoleService roles, ShopService shops) : PageModel
 {
     [BindProperty(SupportsGet = true)] public string Tab { get; set; } = "users";
 
     public PagedResult<User>? Users { get; private set; }
     public IReadOnlyList<RoleDetail>? Roles { get; private set; }
     public IReadOnlyDictionary<int, string> RoleNames { get; private set; } = new Dictionary<int, string>();
+    public IReadOnlyDictionary<int, string> ShopNames { get; private set; } = new Dictionary<int, string>();
+
+    /// <summary>The shop column is only worth a column once the organisation actually has shops.</summary>
+    public bool HasShops => ShopNames.Count > 0;
 
     public void OnGet()
     {
@@ -24,6 +28,9 @@ public class IndexModel(UserService users, RoleService roles) : PageModel
             Roles = rl.Value;
             RoleNames = rl.Value.ToDictionary(r => r.Role.Id, r => r.Role.Name);
         }
+
+        var sl = shops.List(activeOnly: false);
+        if (sl.Succeeded) ShopNames = sl.Value.ToDictionary(s => s.Id, s => s.Name);
 
         if (Tab != "roles")
         {

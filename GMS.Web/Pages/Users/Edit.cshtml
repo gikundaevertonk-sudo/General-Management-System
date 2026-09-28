@@ -16,6 +16,14 @@
         <label asp-for="Input.RoleId" class="form-label">Role</label>
         <select asp-for="Input.RoleId" asp-items="Model.RoleOptions" class="form-select"></select>
     </div>
+    @if (Model.HasShops)
+    {
+        <div class="col-md-6">
+            <label asp-for="ShopChoice" class="form-label">Shop</label>
+            <select asp-for="ShopChoice" asp-items="Model.ShopOptions" class="form-select"></select>
+            <div class="form-text">Pick a shop to make this a shop attendant: they will only ever see and sell that shop's stock.</div>
+        </div>
+    }
     @if (Model.IsNew)
     {
         <div class="col-md-6">

@@ -84,6 +84,10 @@
     <Compile Update="Forms\SupplierEditForm.Designer.vb"><DependentUpon>SupplierEditForm.vb</DependentUpon></Compile>
     <Compile Update="Forms\CategoryEditForm.vb"><SubType>Form</SubType></Compile>
     <Compile Update="Forms\CategoryEditForm.Designer.vb"><DependentUpon>CategoryEditForm.vb</DependentUpon></Compile>
+    <Compile Update="Forms\ShopEditForm.vb"><SubType>Form</SubType></Compile>
+    <Compile Update="Forms\ShopEditForm.Designer.vb"><DependentUpon>ShopEditForm.vb</DependentUpon></Compile>
+    <Compile Update="Forms\StockAllocateForm.vb"><SubType>Form</SubType></Compile>
+    <Compile Update="Forms\StockAllocateForm.Designer.vb"><DependentUpon>StockAllocateForm.vb</DependentUpon></Compile>
   </ItemGroup>
 
 </Project>

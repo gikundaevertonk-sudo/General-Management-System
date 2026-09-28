@@ -80,6 +80,42 @@ Namespace Contracts
         Public Property QuantityAfter As Decimal
         Public Property Note As String = String.Empty
         Public Property TransactionNumber As String = String.Empty
+        Public Property ShopId As Integer?
+        ''' <summary>Shop the movement happened at, or "Central" when it did not happen at one.</summary>
+        Public Property Location As String = String.Empty
+    End Class
+
+    ''' <summary>
+    ''' How much of one product sits at one location. Used both for a shop's own stock list and,
+    ''' with <c>ShopId</c> null, for the central row of a product's distribution.
+    ''' </summary>
+    Public NotInheritable Class ShopStockRow
+        Public Property ShopId As Integer?
+        Public Property Location As String = String.Empty
+        Public Property ProductId As Integer
+        Public Property Sku As String = String.Empty
+        Public Property ProductName As String = String.Empty
+        Public Property UnitOfMeasure As String = String.Empty
+        Public Property QuantityOnHand As Decimal
+        Public Property ReorderLevel As Decimal
+        Public Property UnitCost As Decimal
+        Public Property ValueAtCost As Decimal
+        Public Property BelowReorderLevel As Boolean
+    End Class
+
+    ''' <summary>One shop as it appears on the organization's shop list.</summary>
+    Public NotInheritable Class ShopSummaryRow
+        Public Property ShopId As Integer
+        Public Property Name As String = String.Empty
+        Public Property Code As String = String.Empty
+        Public Property IsActive As Boolean
+        ''' <summary>Accounts pinned to this shop.</summary>
+        Public Property StaffCount As Integer
+        ''' <summary>Products with a non-zero balance here.</summary>
+        Public Property SkuCount As Integer
+        Public Property QuantityOnHand As Decimal
+        Public Property StockValueAtCost As Decimal
+        Public Property LowStockCount As Integer
     End Class
 
 End Namespace

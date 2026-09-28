@@ -24,6 +24,8 @@ Partial Class TransactionEditForm
         Me.txtWalkIn = New System.Windows.Forms.TextBox()
         Me.lblDate = New System.Windows.Forms.Label()
         Me.dtpDate = New System.Windows.Forms.DateTimePicker()
+        Me.lblShop = New System.Windows.Forms.Label()
+        Me.cboShop = New System.Windows.Forms.ComboBox()
         Me.lblNotes = New System.Windows.Forms.Label()
         Me.txtNotes = New System.Windows.Forms.TextBox()
         Me.btnStart = New System.Windows.Forms.Button()
@@ -86,6 +88,22 @@ Partial Class TransactionEditForm
         Me.dtpDate.Name = "dtpDate"
         Me.dtpDate.Size = New System.Drawing.Size(160, 23)
         Me.dtpDate.TabIndex = 3
+        '
+        ' Shares the date's row for the same reason txtWalkIn shares the party's: this form is
+        ' fixed-layout, so a row of its own would mean moving everything below it.
+        Me.lblShop.AutoSize = True
+        Me.lblShop.ForeColor = System.Drawing.Color.FromArgb(107, 114, 128)
+        Me.lblShop.Location = New System.Drawing.Point(300, 52)
+        Me.lblShop.Name = "lblShop"
+        Me.lblShop.Size = New System.Drawing.Size(34, 15)
+        Me.lblShop.TabIndex = 20
+        Me.lblShop.Text = "Shop"
+        '
+        Me.cboShop.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
+        Me.cboShop.Location = New System.Drawing.Point(350, 49)
+        Me.cboShop.Name = "cboShop"
+        Me.cboShop.Size = New System.Drawing.Size(250, 23)
+        Me.cboShop.TabIndex = 21
         '
         Me.lblNotes.AutoSize = True
         Me.lblNotes.ForeColor = System.Drawing.Color.FromArgb(107, 114, 128)
@@ -265,6 +283,8 @@ Partial Class TransactionEditForm
         Me.Controls.Add(Me.btnStart)
         Me.Controls.Add(Me.txtNotes)
         Me.Controls.Add(Me.lblNotes)
+        Me.Controls.Add(Me.cboShop)
+        Me.Controls.Add(Me.lblShop)
         Me.Controls.Add(Me.dtpDate)
         Me.Controls.Add(Me.lblDate)
         Me.Controls.Add(Me.txtWalkIn)
@@ -288,6 +308,8 @@ Partial Class TransactionEditForm
     Friend WithEvents txtWalkIn As System.Windows.Forms.TextBox
     Friend WithEvents lblDate As System.Windows.Forms.Label
     Friend WithEvents dtpDate As System.Windows.Forms.DateTimePicker
+    Friend WithEvents lblShop As System.Windows.Forms.Label
+    Friend WithEvents cboShop As System.Windows.Forms.ComboBox
     Friend WithEvents lblNotes As System.Windows.Forms.Label
     Friend WithEvents txtNotes As System.Windows.Forms.TextBox
     Friend WithEvents btnStart As System.Windows.Forms.Button

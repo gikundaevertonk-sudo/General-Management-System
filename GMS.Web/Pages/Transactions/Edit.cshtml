@@ -49,6 +49,16 @@
                     </div>
                 }
             }
+            @if (Model.CanChooseShop)
+            {
+                <div class="col-12">
+                    <label asp-for="ShopChoice" class="form-label">Shop</label>
+                    <select asp-for="ShopChoice" asp-items="Model.ShopOptions" class="form-select"></select>
+                    <div class="form-text">
+                        Whose stock this moves when it is confirmed. It cannot be changed afterwards.
+                    </div>
+                </div>
+            }
             <div class="col-md-6">
                 <label asp-for="TxnDate" class="form-label">Date</label>
                 <input asp-for="TxnDate" type="date" class="form-control" />
@@ -122,6 +132,10 @@ else
                     <dt class="col-4 muted">Number</dt><dd class="col-8">@t.TransactionNumber</dd>
                     <dt class="col-4 muted">Type</dt><dd class="col-8">@t.Type</dd>
                     <dt class="col-4 muted">Status</dt><dd class="col-8">@t.Status</dd>
+                    @if (Model.ShopNames.Count > 0)
+                    {
+                        <dt class="col-4 muted">Shop</dt><dd class="col-8">@Model.LocationOf(t)</dd>
+                    }
                     <dt class="col-4 muted">Date</dt><dd class="col-8">@t.TransactionDate.ToString("yyyy-MM-dd")</dd>
                     <dt class="col-4 muted">Notes</dt><dd class="col-8">@(string.IsNullOrWhiteSpace(t.Notes) ? "—" : t.Notes)</dd>
                 </dl>

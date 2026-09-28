@@ -12,6 +12,11 @@ Namespace Services
         Public Property Email As String = String.Empty
         Public Property FullName As String = String.Empty
         Public Property RoleId As Integer
+        ''' <summary>
+        ''' Pin this account to one shop, or leave empty for organization-wide access. This is what
+        ''' turns an ordinary staff account into a shop attendant.
+        ''' </summary>
+        Public Property ShopId As Integer?
         Public Property IsActive As Boolean = True
     End Class
 
@@ -85,6 +90,7 @@ Namespace Services
                 .Email = If(input.Email, String.Empty).Trim(),
                 .FullName = If(input.FullName, String.Empty).Trim(),
                 .RoleId = input.RoleId,
+                .ShopId = input.ShopId,
                 .IsActive = input.IsActive,
                 .PasswordHash = _hasher.Hash(temporaryPassword),
                 .MustChangePassword = True,
@@ -114,6 +120,7 @@ Namespace Services
             entity.Email = If(input.Email, String.Empty).Trim()
             entity.FullName = If(input.FullName, String.Empty).Trim()
             entity.RoleId = input.RoleId
+            entity.ShopId = input.ShopId
             entity.IsActive = input.IsActive
             entity.UpdatedAtUtc = Clock.UtcNow
             entity.UpdatedByUserId = CurrentUser.UserId
@@ -190,6 +197,17 @@ Namespace Services
                 errors.Add("A valid email address is required.")
             End If
             If Uow.Repository(Of Role)().GetById(input.RoleId) Is Nothing Then errors.Add("The selected role was not found.")
+
+            If input.ShopId.HasValue Then
+                Dim shop = Uow.Repository(Of Shop)().GetById(input.ShopId.Value)
+                If shop Is Nothing Then
+                    errors.Add("The selected shop was not found.")
+                ElseIf Not shop.IsActive Then
+                    ' Pinning someone to a closed shop would leave them signed in with nothing to
+                    ' sell from and no stock to see.
+                    errors.Add($"'{shop.Name}' is closed; choose an open shop or leave the shop empty.")
+                End If
+            End If
 
             If Not String.IsNullOrWhiteSpace(input.UserName) Then
                 Dim name = input.UserName.Trim().ToLower()

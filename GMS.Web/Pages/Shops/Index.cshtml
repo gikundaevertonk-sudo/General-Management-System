@@ -1,0 +1,75 @@
+@page
+@model GMS.Web.Pages.Shops.IndexModel
+@{ ViewData["Title"] = "Shops"; Layout = "_Layout"; }
+@{
+    var canManage = Me.HasPermission(PermissionCodes.Shops.Manage);
+    var canAllocate = Me.HasPermission(PermissionCodes.Shops.Allocate);
+}
+
+<div class="page-head">
+    <h1>Shops</h1>
+    @if (canManage) { <a asp-page="Edit" class="btn btn-primary btn-sm">New shop</a> }
+</div>
+
+@if (Model.Central is { } central)
+{
+    <div class="card mb-3"><div class="card-body d-flex flex-wrap align-items-center gap-4">
+        <div>
+            <div class="fw-semibold">Central</div>
+            <div class="muted small">Stock that has not been sent to a shop yet.</div>
+        </div>
+        <div><div class="muted small">Items</div><div class="fw-semibold">@central.SkuCount</div></div>
+        <div><div class="muted small">Units</div><div class="fw-semibold">@central.QuantityOnHand.ToString("N3")</div></div>
+        <div><div class="muted small">Value at cost</div><div class="fw-semibold">@central.StockValueAtCost.ToString("N2")</div></div>
+        <div class="ms-auto">
+            <a asp-page="Stock" class="btn btn-outline-secondary btn-sm">@(canAllocate ? "View and allocate" : "View stock")</a>
+        </div>
+    </div></div>
+}
+
+<div class="card"><div class="table-responsive">
+    <table class="table table-sm table-hover mb-0 align-middle">
+        <thead>
+            <tr>
+                <th>Shop</th><th>Code</th>
+                <th class="text-end">Staff</th><th class="text-end">Items</th>
+                <th class="text-end">Units</th><th class="text-end">Value at cost</th>
+                <th class="text-end">Low</th><th>Open</th><th></th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var s in Model.Rows)
+        {
+            <tr>
+                <td>@s.Name</td>
+                <td class="muted">@s.Code</td>
+                <td class="text-end">@s.StaffCount</td>
+                <td class="text-end">@s.SkuCount</td>
+                <td class="text-end">@s.QuantityOnHand.ToString("N3")</td>
+                <td class="text-end">@s.StockValueAtCost.ToString("N2")</td>
+                <td class="text-end">
+                    @if (s.LowStockCount > 0) { <span class="badge bg-warning text-dark">@s.LowStockCount</span> }
+                </td>
+                <td>@(s.IsActive ? "Yes" : "No")</td>
+                <td class="text-end text-nowrap">
+                    <a asp-page="Stock" asp-route-shopId="@s.ShopId" class="btn btn-sm btn-link py-0">Stock</a>
+                    @if (canManage)
+                    {
+                        <a asp-page="Edit" asp-route-id="@s.ShopId" class="btn btn-sm btn-link py-0">Edit</a>
+                        <form method="post" asp-page-handler="Toggle" asp-route-id="@s.ShopId" asp-route-active="@s.IsActive" class="d-inline">
+                            <button class="btn btn-sm btn-link py-0">@(s.IsActive ? "Close" : "Reopen")</button>
+                        </form>
+                    }
+                </td>
+            </tr>
+        }
+        @if (Model.Rows.Count == 0)
+        {
+            <tr><td colspan="9" class="muted">
+                No shops yet.
+                @if (canManage) { <text>Add one to start running more than one location from here.</text> }
+            </td></tr>
+        }
+        </tbody>
+    </table>
+</div></div>

@@ -15,10 +15,15 @@ Namespace Views
         Private ReadOnly _grid As DataGridView = UiKit.MakeGrid()
         Private ReadOnly _onHand As New Label()
         Private ReadOnly _canAdjust As Boolean
+        Private ReadOnly _hasShops As Boolean
 
         Public Sub New()
             MyBase.New("Inventory")
             _canAdjust = AppHost.Current.Session.Principal.HasPermission(PermissionCodes.Inventory.Adjust)
+
+            ' The ledger only needs a Location column once stock can be in more than one place.
+            Dim shops = AppHost.Current.Resolve(Of ShopService)().List()
+            _hasShops = shops.Succeeded AndAlso shops.Value.Count > 0
 
             Dim refresh = UiKit.SecondaryButton("Refresh")
             AddHandler refresh.Click, Sub() LoadLedger()
@@ -35,11 +40,12 @@ Namespace Views
             _product.SetBounds(8, 8, 320, 24)
             _product.DisplayMember = "Text" : _product.ValueMember = "Value"
             AddHandler _product.SelectedIndexChanged, Sub() LoadLedger()
-            _onHand.SetBounds(344, 12, 300, 20)
+            _onHand.SetBounds(344, 12, 900, 20)
             _onHand.ForeColor = UiKit.MutedText
             bar.Controls.AddRange({_product, _onHand})
 
             _grid.Columns.Add(UiKit.TextColumn("When (UTC)", "When", width:=150))
+            If _hasShops Then _grid.Columns.Add(UiKit.TextColumn("Location", "Location", width:=130))
             _grid.Columns.Add(UiKit.TextColumn("Direction", "Direction", width:=90))
             _grid.Columns.Add(UiKit.TextColumn("Reason", "Reason", width:=140))
             _grid.Columns.Add(UiKit.NumberColumn("Qty", "Quantity", "N3", 90))
@@ -73,17 +79,21 @@ Namespace Views
                         Dim pid = SelectedProductId()
                         If pid = 0 Then Return
 
+                        Dim inventory = AppHost.Current.Resolve(Of InventoryService)()
                         Dim prod = AppHost.Current.Resolve(Of ProductService)().GetById(pid)
-                        _onHand.Text = If(prod.Succeeded, $"On hand: {prod.Value.QuantityOnHand:N3} {prod.Value.UnitOfMeasure}", "")
+                        _onHand.Text = If(prod.Succeeded,
+                            $"{If(_hasShops, "Across the organisation", "On hand")}: " &
+                            $"{prod.Value.QuantityOnHand:N3} {prod.Value.UnitOfMeasure}{WhereItIs(inventory, pid)}",
+                            "")
 
-                        Dim res = AppHost.Current.Resolve(Of InventoryService)().
-                            GetLedger(pid, New QueryOptions With {.PageSize = 200})
+                        Dim res = inventory.GetLedger(pid, New QueryOptions With {.PageSize = 200})
                         If res.Failed Then
                             MessageBox.Show(Me, res.ErrorMessage, "Inventory", MessageBoxButtons.OK, MessageBoxIcon.Warning)
                             Return
                         End If
                         _grid.DataSource = res.Value.Items.Select(Function(r) New With {
                             .When = r.MovedAtUtc.ToString("yyyy-MM-dd HH:mm"),
+                            r.Location,
                             .Direction = r.Direction.ToString(),
                             .Reason = r.Reason.ToString(),
                             r.Quantity, r.QuantityAfter,
@@ -92,6 +102,20 @@ Namespace Views
                         }).ToList()
                     End Sub)
         End Sub
+
+        ''' <summary>
+        ''' A one-line breakdown of where a product's stock is sitting, for the header. Empty when
+        ''' the organisation has no shops, where the only answer would be "all of it, here".
+        ''' </summary>
+        Private Function WhereItIs(inventory As InventoryService, productId As Integer) As String
+            If Not _hasShops Then Return ""
+            Dim spread = inventory.GetDistribution(productId)
+            If spread.Failed Then Return ""
+            Dim parts = spread.Value.Where(Function(r) r.QuantityOnHand <> 0D).
+                Select(Function(r) $"{r.Location} {r.QuantityOnHand:N3}").ToList()
+            If Not parts.Any() Then Return ""
+            Return "   ·   " & String.Join("   ", parts)
+        End Function
 
         Private Sub OpenAdjust()
             Dim pid = SelectedProductId()

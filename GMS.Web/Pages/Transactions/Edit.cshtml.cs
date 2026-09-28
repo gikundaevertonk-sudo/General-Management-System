@@ -13,7 +13,9 @@ public class EditModel(
     TransactionService transactions,
     ProductService products,
     CustomerService customers,
-    SupplierService suppliers) : PageModel
+    SupplierService suppliers,
+    ShopService shops,
+    GMS.Core.Abstractions.ICurrentUser me) : PageModel
 {
     [BindProperty(SupportsGet = true)] public int? Id { get; set; }
     [BindProperty(SupportsGet = true)] public TransactionType? Type { get; set; }
@@ -24,9 +26,20 @@ public class EditModel(
     public List<SelectListItem> PartyOptions { get; private set; } = new();
     public List<SelectListItem> ProductOptions { get; private set; } = new();
 
+    /// <summary>
+    /// Where this document's stock will move. Offered only to a caller who is not pinned to a
+    /// shop; an attendant's document is always their own shop's and the picker would be a lie.
+    /// </summary>
+    public List<SelectListItem> ShopOptions { get; private set; } = new();
+    public IReadOnlyDictionary<int, string> ShopNames { get; private set; } = new Dictionary<int, string>();
+    public bool CanChooseShop => ShopOptions.Count > 1;
+    public string LocationOf(Transaction t) =>
+        t.ShopId is int id ? ShopNames.GetValueOrDefault(id, $"Shop #{id}") : "Central";
+
     // new-draft form
     [BindProperty] public int PartyId { get; set; }
     [BindProperty] public string? WalkInName { get; set; }
+    [BindProperty] public string? ShopChoice { get; set; }
     [BindProperty] public DateTime TxnDate { get; set; } = DateTime.Today;
     [BindProperty] public string? Notes { get; set; }
 
@@ -59,7 +72,9 @@ public class EditModel(
         // PartyId is 0 when the dropdown is left on the one-off option, and the typed name
         // carries the buyer instead.
         int? party = type is TransactionType.Sale or TransactionType.Purchase && PartyId > 0 ? PartyId : null;
-        var result = transactions.CreateDraft(type, party, TxnDate, Notes ?? "", WalkInName);
+        // "" is central; the service pins an attendant to their own shop whatever arrives here.
+        int? shop = string.IsNullOrEmpty(ShopChoice) ? null : int.Parse(ShopChoice);
+        var result = transactions.CreateDraft(type, party, TxnDate, Notes ?? "", WalkInName, shop);
         if (result.Failed) { Error = result.ErrorMessage; LoadLookups(type); return Page(); }
         return RedirectToPage("Edit", new { id = result.Value.Id });
     }
@@ -109,6 +124,18 @@ public class EditModel(
         ProductOptions = ps.Succeeded
             ? ps.Value.Items.Select(p => new SelectListItem($"{p.Sku} — {p.Name}", p.Id.ToString())).ToList()
             : new();
+
+        var sl = shops.List();
+        if (sl.Succeeded)
+        {
+            ShopNames = sl.Value.ToDictionary(s => s.Id, s => s.Name);
+            ShopOptions = new();
+            if (me.ShopId is null)
+            {
+                ShopOptions.Add(new SelectListItem("Central", ""));
+                ShopOptions.AddRange(sl.Value.Select(s => new SelectListItem(s.Name, s.Id.ToString())));
+            }
+        }
 
         PartyOptions = new();
         if (type == TransactionType.Sale)

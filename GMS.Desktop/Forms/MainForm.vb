@@ -52,6 +52,7 @@ Namespace Forms
             AddNav("suppliers", "Suppliers", PermissionCodes.Suppliers.View, Function() New SuppliersView())
             AddNav("transactions", "Transactions", PermissionCodes.Transactions.View, Function() New TransactionsView())
             AddNav("inventory", "Inventory", PermissionCodes.Inventory.View, Function() New InventoryView())
+            AddNav("shops", "Shops", PermissionCodes.Shops.View, Function() New ShopsView())
             AddNav("reports", "Reports", PermissionCodes.Reports.View, Function() New ReportsView())
             AddNav("users", "Users & Roles", PermissionCodes.Users.View, Function() New UsersView())
             AddNav("notifications", "Notifications", Nothing, Function() New NotificationsView())
@@ -61,9 +62,15 @@ Namespace Forms
             Dim spacer As New Panel With {.Size = New Size(200, 24)}
             _nav.Controls.Add(spacer)
 
+            ' The shop is named here because everything a pinned attendant sees is silently
+            ' narrowed to it; without it on screen, an empty list reads as missing data.
+            Dim whoLines = $"  {session.Principal.FullName}" & Environment.NewLine & $"  {session.Principal.RoleName}"
+            If session.Principal.ShopId.HasValue AndAlso Not String.IsNullOrEmpty(session.Principal.ShopName) Then
+                whoLines &= Environment.NewLine & $"  {session.Principal.ShopName}"
+            End If
             Dim who As New Label With {
-                .Text = $"  {session.Principal.FullName}" & Environment.NewLine & $"  {session.Principal.RoleName}",
-                .ForeColor = Color.Gainsboro, .AutoSize = False, .Size = New Size(210, 44),
+                .Text = whoLines,
+                .ForeColor = Color.Gainsboro, .AutoSize = False, .Size = New Size(210, 58),
                 .Font = New Font("Segoe UI", 8.5F)}
             _nav.Controls.Add(who)
 

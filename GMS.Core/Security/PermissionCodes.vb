@@ -65,6 +65,22 @@ Namespace Security
             Public Const Adjust As String = "inventory.adjust"
         End Class
 
+        Public NotInheritable Class Shops
+            Public Const View As String = "shops.view"
+            Public Const Manage As String = "shops.manage"
+            ''' <summary>
+            ''' Move stock between the central pool and a shop, or between two shops.
+            ''' </summary>
+            ''' <remarks>
+            ''' Separate from <see cref="Manage"/> so a manager can send stock out to the branches
+            ''' without also being able to open, rename or close one, and separate from
+            ''' <see cref="Inventory.Adjust"/> because the two answer different questions: an
+            ''' adjustment changes how much the organization owns, an allocation only changes
+            ''' where it is.
+            ''' </remarks>
+            Public Const Allocate As String = "shops.allocate"
+        End Class
+
         Public NotInheritable Class Reports
             Public Const View As String = "reports.view"
         End Class
@@ -98,6 +114,9 @@ Namespace Security
             New PermissionDefinition(Transactions.Cancel, "Transactions", "Cancel confirmed transactions"),
             New PermissionDefinition(Inventory.View, "Inventory", "View stock ledger and valuation"),
             New PermissionDefinition(Inventory.Adjust, "Inventory", "Make manual stock adjustments"),
+            New PermissionDefinition(Shops.View, "Shops", "View shops and their stock"),
+            New PermissionDefinition(Shops.Manage, "Shops", "Create, edit and close shops"),
+            New PermissionDefinition(Shops.Allocate, "Shops", "Allocate stock to and between shops"),
             New PermissionDefinition(Reports.View, "Reports", "Run and export reports"),
             New PermissionDefinition(Audit.View, "Audit", "View the audit trail"),
             New PermissionDefinition(Settings.Manage, "Settings", "Change application settings")

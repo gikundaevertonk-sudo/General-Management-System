@@ -37,6 +37,19 @@ public sealed class WebCurrentUser(IHttpContextAccessor accessor) : ICurrentUser
         IsSystemContext || (User?.IsInRole(roleName) ?? false);
 
     /// <summary>
+    /// The shop claim written at sign-in, or null for a user with organization-wide access.
+    /// </summary>
+    /// <remarks>
+    /// Read from the cookie rather than the database on every call, like every other part of this
+    /// identity. The cost is that moving someone between shops only takes effect at their next
+    /// sign-in — acceptable, because the same is already true of changing their role. During
+    /// start-up seeding there is no HTTP context and so no claim, which correctly leaves the
+    /// seeder unconfined.
+    /// </remarks>
+    public int? ShopId =>
+        int.TryParse(User?.FindFirstValue(Claims.ShopId), out var id) ? id : null;
+
+    /// <summary>
     /// Always false. This application has no operator surface at all.
     /// </summary>
     /// <remarks>
@@ -61,6 +74,8 @@ public static class Claims
     public const string FullName = "fullname";
     public const string MustChangePassword = "mustchange";
     public const string OrganizationId = "org_id";
+    public const string ShopId = "shop_id";
+    public const string ShopName = "shop_name";
 
     /// <summary>Builds the cookie identity for a freshly authenticated user.</summary>
     public static ClaimsPrincipal BuildPrincipal(AuthenticatedUser user, string authScheme)
@@ -74,6 +89,13 @@ public static class Claims
             new(MustChangePassword, user.MustChangePassword ? "1" : "0"),
             new(OrganizationId, user.OrganizationId.ToString()),
         };
+        // Omitted entirely for an unpinned user, so WebCurrentUser.ShopId reads null rather than
+        // having to treat some placeholder value as "no shop".
+        if (user.ShopId is int shopId)
+        {
+            claims.Add(new Claim(ShopId, shopId.ToString()));
+            claims.Add(new Claim(ShopName, user.ShopName));
+        }
         claims.AddRange(user.Permissions.Select(code => new Claim(Permission, code)));
 
         return new ClaimsPrincipal(new ClaimsIdentity(claims, authScheme));

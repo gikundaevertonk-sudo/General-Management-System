@@ -70,11 +70,18 @@ Namespace Views
             Guarded(Sub()
                         _grid.Columns.Clear()
                         _grid.DataSource = Nothing
+                        Dim shops = AppHost.Current.Resolve(Of ShopService)().List(activeOnly:=False)
+                        Dim shopName = If(shops.Succeeded,
+                            shops.Value.ToDictionary(Function(s) s.Id, Function(s) s.Name),
+                            New Dictionary(Of Integer, String))
+
                         _grid.Columns.AddRange(UiKit.TextColumn("Username", "UserName", width:=140),
                                                UiKit.TextColumn("Full name", "FullName", fill:=100),
                                                UiKit.TextColumn("Email", "Email", fill:=100),
-                                               UiKit.TextColumn("Role", "Role", width:=120),
-                                               UiKit.TextColumn("Active", "Active", width:=64),
+                                               UiKit.TextColumn("Role", "Role", width:=120))
+                        ' Only worth a column once the organisation actually has shops.
+                        If shopName.Count > 0 Then _grid.Columns.Add(UiKit.TextColumn("Shop", "Shop", width:=130))
+                        _grid.Columns.AddRange(UiKit.TextColumn("Active", "Active", width:=64),
                                                UiKit.TextColumn("Last sign-in (UTC)", "LastLogin", width:=150))
 
                         Dim res = AppHost.Current.Resolve(Of UserService)().Search(New QueryOptions With {.PageSize = 500})
@@ -85,6 +92,7 @@ Namespace Views
                         _grid.DataSource = res.Value.Items.Select(Function(u) New Row With {
                             .Id = u.Id, .UserName = u.UserName, .FullName = u.FullName, .Email = u.Email,
                             .Role = roleName.GetValueOrDefault(u.RoleId, "—"),
+                            .Shop = If(u.ShopId.HasValue, shopName.GetValueOrDefault(u.ShopId.Value, "—"), "All shops"),
                             .Active = If(u.IsActive, "Yes", "No"),
                             .LastLogin = If(u.LastLoginUtc.HasValue, u.LastLoginUtc.Value.ToString("yyyy-MM-dd HH:mm"), "—")
                         }).ToList()
@@ -151,6 +159,7 @@ Namespace Views
             Public Property FullName As String
             Public Property Email As String
             Public Property Role As String
+            Public Property Shop As String
             Public Property Active As String
             Public Property LastLogin As String
         End Class

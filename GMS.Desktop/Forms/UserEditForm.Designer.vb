@@ -27,6 +27,9 @@ Partial Class UserEditForm
         Me.txtEmail = New System.Windows.Forms.TextBox()
         Me.lblRole = New System.Windows.Forms.Label()
         Me.cboRole = New System.Windows.Forms.ComboBox()
+        Me.lblShop = New System.Windows.Forms.Label()
+        Me.cboShop = New System.Windows.Forms.ComboBox()
+        Me.lblShopHint = New System.Windows.Forms.Label()
         Me.lblTempPassword = New System.Windows.Forms.Label()
         Me.txtTempPassword = New System.Windows.Forms.TextBox()
         Me.chkActive = New System.Windows.Forms.CheckBox()
@@ -88,49 +91,70 @@ Partial Class UserEditForm
         Me.cboRole.Size = New System.Drawing.Size(280, 23)
         Me.cboRole.TabIndex = 7
         '
+        Me.lblShop.AutoSize = True
+        Me.lblShop.ForeColor = System.Drawing.Color.FromArgb(107, 114, 128)
+        Me.lblShop.Location = New System.Drawing.Point(20, 165)
+        Me.lblShop.Name = "lblShop"
+        Me.lblShop.Size = New System.Drawing.Size(34, 15)
+        Me.lblShop.TabIndex = 8
+        Me.lblShop.Text = "Shop"
+        '
+        Me.cboShop.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
+        Me.cboShop.Location = New System.Drawing.Point(140, 162)
+        Me.cboShop.Name = "cboShop"
+        Me.cboShop.Size = New System.Drawing.Size(280, 23)
+        Me.cboShop.TabIndex = 9
+        '
+        Me.lblShopHint.ForeColor = System.Drawing.Color.FromArgb(107, 114, 128)
+        Me.lblShopHint.Location = New System.Drawing.Point(140, 188)
+        Me.lblShopHint.Name = "lblShopHint"
+        Me.lblShopHint.Size = New System.Drawing.Size(280, 30)
+        Me.lblShopHint.TabIndex = 10
+        Me.lblShopHint.Text = "Pick a shop to make this a shop attendant: they will only see and sell that shop's stock."
+        '
         Me.lblTempPassword.AutoSize = True
         Me.lblTempPassword.ForeColor = System.Drawing.Color.FromArgb(107, 114, 128)
-        Me.lblTempPassword.Location = New System.Drawing.Point(20, 165)
+        Me.lblTempPassword.Location = New System.Drawing.Point(20, 225)
         Me.lblTempPassword.Name = "lblTempPassword"
         Me.lblTempPassword.Size = New System.Drawing.Size(96, 15)
-        Me.lblTempPassword.TabIndex = 8
+        Me.lblTempPassword.TabIndex = 11
         Me.lblTempPassword.Text = "Temp. password"
         '
-        Me.txtTempPassword.Location = New System.Drawing.Point(140, 162)
+        Me.txtTempPassword.Location = New System.Drawing.Point(140, 222)
         Me.txtTempPassword.Name = "txtTempPassword"
         Me.txtTempPassword.Size = New System.Drawing.Size(280, 23)
-        Me.txtTempPassword.TabIndex = 9
+        Me.txtTempPassword.TabIndex = 12
         Me.txtTempPassword.UseSystemPasswordChar = True
         '
         Me.chkActive.AutoSize = True
         Me.chkActive.Checked = True
         Me.chkActive.CheckState = System.Windows.Forms.CheckState.Checked
-        Me.chkActive.Location = New System.Drawing.Point(140, 198)
+        Me.chkActive.Location = New System.Drawing.Point(140, 258)
         Me.chkActive.Name = "chkActive"
         Me.chkActive.Size = New System.Drawing.Size(59, 19)
-        Me.chkActive.TabIndex = 10
+        Me.chkActive.TabIndex = 13
         Me.chkActive.Text = "Active"
         '
         Me.lblError.ForeColor = System.Drawing.Color.FromArgb(185, 28, 28)
-        Me.lblError.Location = New System.Drawing.Point(20, 228)
+        Me.lblError.Location = New System.Drawing.Point(20, 288)
         Me.lblError.Name = "lblError"
         Me.lblError.Size = New System.Drawing.Size(400, 32)
-        Me.lblError.TabIndex = 11
+        Me.lblError.TabIndex = 14
         '
         Me.btnSave.BackColor = System.Drawing.Color.FromArgb(37, 99, 235)
         Me.btnSave.FlatStyle = System.Windows.Forms.FlatStyle.Flat
         Me.btnSave.ForeColor = System.Drawing.Color.White
-        Me.btnSave.Location = New System.Drawing.Point(140, 268)
+        Me.btnSave.Location = New System.Drawing.Point(140, 328)
         Me.btnSave.Name = "btnSave"
         Me.btnSave.Size = New System.Drawing.Size(160, 34)
-        Me.btnSave.TabIndex = 12
+        Me.btnSave.TabIndex = 15
         Me.btnSave.Text = "Save"
         Me.btnSave.UseVisualStyleBackColor = False
         '
-        Me.btnCancel.Location = New System.Drawing.Point(310, 268)
+        Me.btnCancel.Location = New System.Drawing.Point(310, 328)
         Me.btnCancel.Name = "btnCancel"
         Me.btnCancel.Size = New System.Drawing.Size(110, 34)
-        Me.btnCancel.TabIndex = 13
+        Me.btnCancel.TabIndex = 16
         Me.btnCancel.Text = "Cancel"
         Me.btnCancel.UseVisualStyleBackColor = True
         '
@@ -141,13 +165,16 @@ Partial Class UserEditForm
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.BackColor = System.Drawing.Color.White
         Me.CancelButton = Me.btnCancel
-        Me.ClientSize = New System.Drawing.Size(440, 330)
+        Me.ClientSize = New System.Drawing.Size(440, 390)
         Me.Controls.Add(Me.btnCancel)
         Me.Controls.Add(Me.btnSave)
         Me.Controls.Add(Me.lblError)
         Me.Controls.Add(Me.chkActive)
         Me.Controls.Add(Me.txtTempPassword)
         Me.Controls.Add(Me.lblTempPassword)
+        Me.Controls.Add(Me.lblShopHint)
+        Me.Controls.Add(Me.cboShop)
+        Me.Controls.Add(Me.lblShop)
         Me.Controls.Add(Me.cboRole)
         Me.Controls.Add(Me.lblRole)
         Me.Controls.Add(Me.txtEmail)
@@ -175,6 +202,9 @@ Partial Class UserEditForm
     Friend WithEvents txtEmail As System.Windows.Forms.TextBox
     Friend WithEvents lblRole As System.Windows.Forms.Label
     Friend WithEvents cboRole As System.Windows.Forms.ComboBox
+    Friend WithEvents lblShop As System.Windows.Forms.Label
+    Friend WithEvents cboShop As System.Windows.Forms.ComboBox
+    Friend WithEvents lblShopHint As System.Windows.Forms.Label
     Friend WithEvents lblTempPassword As System.Windows.Forms.Label
     Friend WithEvents txtTempPassword As System.Windows.Forms.TextBox
     Friend WithEvents chkActive As System.Windows.Forms.CheckBox

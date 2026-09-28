@@ -37,10 +37,23 @@ Namespace Services
 
         Public Function Search(options As QueryOptions,
                                Optional type As TransactionType? = Nothing,
-                               Optional status As TransactionStatus? = Nothing) As Result(Of PagedResult(Of Transaction))
+                               Optional status As TransactionStatus? = Nothing,
+                               Optional shopId As Integer? = Nothing) As Result(Of PagedResult(Of Transaction))
             If Denied(PermissionCodes.Transactions.View) Then Return Forbidden(Of PagedResult(Of Transaction))()
 
             Dim q = Uow.Repository(Of Transaction)().Query()
+
+            ' A caller pinned to a shop sees that shop's documents and nothing else - not the
+            ' central pool's, and not another branch's.
+            Dim pinned = PinnedShopId
+            If pinned.HasValue Then
+                Dim mine = pinned.Value
+                q = q.Where(Function(x) x.ShopId.HasValue AndAlso x.ShopId.Value = mine)
+            ElseIf shopId.HasValue Then
+                Dim chosen = shopId.Value
+                q = q.Where(Function(x) x.ShopId.HasValue AndAlso x.ShopId.Value = chosen)
+            End If
+
             If type.HasValue Then
                 Dim t = type.Value
                 q = q.Where(Function(x) x.Type = t)
@@ -64,13 +77,31 @@ Namespace Services
         Public Function GetById(id As Integer) As Result(Of Transaction)
             If Denied(PermissionCodes.Transactions.View) Then Return Forbidden(Of Transaction)()
             Dim txn = LoadWithLines(id)
-            Return If(txn Is Nothing, NotFound(Of Transaction)("Transaction"), Result(Of Transaction).Ok(txn))
+            If txn Is Nothing Then Return NotFound(Of Transaction)("Transaction")
+            If OutsideShopScope(txn.ShopId) Then Return ForbiddenShop(Of Transaction)()
+            Return Result(Of Transaction).Ok(txn)
         End Function
 
+        ''' <summary>
+        ''' Starts a draft at one location.
+        ''' </summary>
+        ''' <param name="shopId">
+        ''' The shop whose stock this document will move on confirmation; Nothing is the central
+        ''' pool. Ignored for a caller pinned to a shop - an attendant's sale is always their
+        ''' shop's sale.
+        ''' </param>
         Public Function CreateDraft(type As TransactionType, partyId As Integer?,
                                     transactionDate As DateTime, notes As String,
-                                    Optional customerName As String = Nothing) As Result(Of Transaction)
+                                    Optional customerName As String = Nothing,
+                                    Optional shopId As Integer? = Nothing) As Result(Of Transaction)
             If Denied(PermissionCodes.Transactions.Create) Then Return Forbidden(Of Transaction)()
+
+            Dim location = ResolveShopScope(shopId)
+            If location.HasValue Then
+                Dim shop = Uow.Repository(Of Shop)().GetById(location.Value)
+                If shop Is Nothing Then Return Result(Of Transaction).Fail("The selected shop was not found.")
+                If Not shop.IsActive Then Return Result(Of Transaction).Fail($"'{shop.Name}' is closed.")
+            End If
 
             Dim whenUtc = If(transactionDate = Date.MinValue, Clock.UtcNow,
                              DateTime.SpecifyKind(transactionDate, DateTimeKind.Utc))
@@ -78,6 +109,7 @@ Namespace Services
                 .Type = type,
                 .Status = TransactionStatus.Draft,
                 .TransactionDate = whenUtc,
+                .ShopId = location,
                 .Notes = BuildNotes(type, partyId, customerName, notes),
                 .CreatedAtUtc = Clock.UtcNow,
                 .CreatedByUserId = CurrentUser.UserId
@@ -98,6 +130,7 @@ Namespace Services
 
             Dim txn = LoadWithLines(transactionId)
             If txn Is Nothing Then Return NotFound(Of Transaction)("Transaction")
+            If OutsideShopScope(txn.ShopId) Then Return ForbiddenShop(Of Transaction)()
             If txn.Status <> TransactionStatus.Draft Then Return Result(Of Transaction).Fail("Only draft transactions can be edited.")
             If input Is Nothing OrElse input.Quantity <= 0D Then Return Result(Of Transaction).Fail("Quantity must be greater than zero.")
 
@@ -133,6 +166,7 @@ Namespace Services
             If Denied(PermissionCodes.Transactions.Create) Then Return Forbidden()
             Dim txn = LoadWithLines(transactionId)
             If txn Is Nothing Then Return NotFound("Transaction")
+            If OutsideShopScope(txn.ShopId) Then Return ForbiddenShop()
             If txn.Status <> TransactionStatus.Draft Then Return Result.Fail("Only draft transactions can be edited.")
 
             Dim line = txn.Lines.FirstOrDefault(Function(l) l.Id = lineId)
@@ -150,6 +184,7 @@ Namespace Services
             If Denied(PermissionCodes.Transactions.Confirm) Then Return Forbidden()
             Dim txn = LoadWithLines(transactionId)
             If txn Is Nothing Then Return NotFound("Transaction")
+            If OutsideShopScope(txn.ShopId) Then Return ForbiddenShop()
             If txn.Status <> TransactionStatus.Draft Then Return Result.Fail("This transaction is not a draft.")
             If Not txn.Lines.Any() Then Return Result.Fail("Add at least one line before confirming.")
 
@@ -173,6 +208,7 @@ Namespace Services
             If Denied(PermissionCodes.Transactions.Cancel) Then Return Forbidden()
             Dim txn = LoadWithLines(transactionId)
             If txn Is Nothing Then Return NotFound("Transaction")
+            If OutsideShopScope(txn.ShopId) Then Return ForbiddenShop()
 
             Select Case txn.Status
                 Case TransactionStatus.Cancelled

@@ -35,6 +35,13 @@ Namespace Security
             Return True
         End Function
 
+        ''' <summary>Nothing: a system principal is confined to no one shop.</summary>
+        Public ReadOnly Property ShopId As Integer? Implements ICurrentUser.ShopId
+            Get
+                Return Nothing
+            End Get
+        End Property
+
         Public ReadOnly Property IsPlatformOperator As Boolean Implements ICurrentUser.IsPlatformOperator
             Get
                 Return True
@@ -71,6 +78,16 @@ Namespace Security
         Public Function IsInRole(roleName As String) As Boolean Implements ICurrentUser.IsInRole
             Return False
         End Function
+
+        ''' <summary>
+        ''' Nothing. Not a widening: nobody who is signed out reaches a service that reads this,
+        ''' because every one of them refuses on a permission check first.
+        ''' </summary>
+        Public ReadOnly Property ShopId As Integer? Implements ICurrentUser.ShopId
+            Get
+                Return Nothing
+            End Get
+        End Property
 
         Public ReadOnly Property IsPlatformOperator As Boolean Implements ICurrentUser.IsPlatformOperator
             Get

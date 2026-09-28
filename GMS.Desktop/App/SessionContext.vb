@@ -79,6 +79,17 @@ Namespace App
         End Function
 
         ''' <summary>
+        ''' The shop the signed-in user is pinned to. Nothing while seeding, which runs before
+        ''' anyone has signed in and must not be confined to a shop.
+        ''' </summary>
+        Public ReadOnly Property ShopId As Integer? Implements ICurrentUser.ShopId
+            Get
+                If _session.SystemMode Then Return Nothing
+                Return _session.Principal?.ShopId
+            End Get
+        End Property
+
+        ''' <summary>
         ''' Always false. The operator console is web-only; the desktop client signs in as a
         ''' user of one organization and has no way to act on any other.
         ''' </summary>

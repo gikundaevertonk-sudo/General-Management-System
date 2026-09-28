@@ -32,6 +32,11 @@ Namespace Enums
         Adjustment = 3
         CancellationReversal = 4
         OpeningBalance = 5
+        ''' <summary>
+        ''' Stock moved between locations. Always written in pairs - one Out at the source, one In
+        ''' at the destination - so the organization's total is unchanged by it.
+        ''' </summary>
+        Allocation = 6
     End Enum
 
     Public Enum NotificationType

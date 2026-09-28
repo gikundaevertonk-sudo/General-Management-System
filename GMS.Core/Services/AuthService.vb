@@ -166,6 +166,18 @@ Namespace Services
                      Function(rp) rp.PermissionId, Function(p) p.Id, Function(rp, p) p.Code).
                 ToList()
 
+            ' QueryAcrossTenants, not GetById: sign-in projects the principal before any tenant is
+            ' established, and the user's own OrganizationId is matched explicitly below, so the
+            ' lookup can only ever see a shop belonging to the organization being signed in to.
+            Dim shopName = String.Empty
+            If user.ShopId.HasValue Then
+                Dim shopId = user.ShopId.Value
+                Dim orgId = user.OrganizationId
+                shopName = If(Uow.Repository(Of Shop)().QueryAcrossTenants().
+                    Where(Function(s) s.Id = shopId AndAlso s.OrganizationId = orgId).
+                    Select(Function(s) s.Name).FirstOrDefault(), String.Empty)
+            End If
+
             Return New AuthenticatedUser With {
                 .UserId = user.Id,
                 .UserName = user.UserName,
@@ -174,6 +186,8 @@ Namespace Services
                 .RoleId = user.RoleId,
                 .RoleName = If(role?.Name, String.Empty),
                 .OrganizationId = user.OrganizationId,
+                .ShopId = user.ShopId,
+                .ShopName = shopName,
                 .MustChangePassword = user.MustChangePassword,
                 .Permissions = permissions
             }

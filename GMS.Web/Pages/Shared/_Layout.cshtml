@@ -58,6 +58,8 @@
                     { <li class="nav-item"><a class="nav-link @(IsActive("/Transactions") ? "active" : "")" asp-page="/Transactions/Index">Transactions</a></li> }
                     @if (Me.HasPermission(PermissionCodes.Inventory.View))
                     { <li class="nav-item"><a class="nav-link @(IsActive("/Inventory") ? "active" : "")" asp-page="/Inventory/Index">Inventory</a></li> }
+                    @if (Me.HasPermission(PermissionCodes.Shops.View))
+                    { <li class="nav-item"><a class="nav-link @(IsActive("/Shops") ? "active" : "")" asp-page="/Shops/Index">Shops</a></li> }
                     @if (Me.HasPermission(PermissionCodes.Reports.View))
                     { <li class="nav-item"><a class="nav-link @(IsActive("/Reports") ? "active" : "")" asp-page="/Reports/Index">Reports</a></li> }
                     @if (Me.HasPermission(PermissionCodes.Users.View))
@@ -73,7 +75,15 @@
                         Alerts
                         @if (unread > 0) { <span class="badge bg-danger ms-1">@unread</span> }
                     </a>
-                    <div class="sidebar-user">@User.Identity!.Name</div>
+                    <div class="sidebar-user">
+                        @User.Identity!.Name
+                        @* Shown because everything an attendant sees is silently narrowed to this
+                           shop; without it, an empty list looks like missing data rather than scope. *@
+                        @if (User.FindFirst(GMS.Web.Auth.Claims.ShopName)?.Value is { Length: > 0 } shopName)
+                        {
+                            <div class="small text-info-emphasis">@shopName</div>
+                        }
+                    </div>
                     <button type="button" class="sidebar-link theme-toggle" aria-pressed="false" title="Switch between light and dark">
                         <span class="theme-label-dark">Dark mode</span>
                         <span class="theme-label-light">Light mode</span>

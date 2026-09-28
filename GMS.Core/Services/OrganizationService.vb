@@ -451,6 +451,7 @@ Namespace Services
                 Where(Function(t) t.OrganizationId = orgId).Select(Function(t) t.Id).ToList()
             Purge(Of TransactionLine)(Function(x) txnIds.Contains(x.TransactionId))
 
+            Purge(Of ShopStock)(Function(x) x.OrganizationId = orgId)
             Purge(Of StockMovement)(Function(x) x.OrganizationId = orgId)
             Purge(Of Transaction)(Function(x) x.OrganizationId = orgId)
             Purge(Of Product)(Function(x) x.OrganizationId = orgId)
@@ -462,6 +463,9 @@ Namespace Services
             Purge(Of AppSetting)(Function(x) x.OrganizationId = orgId)
             Purge(Of Subscription)(Function(x) x.OrganizationId = orgId)
             Purge(Of User)(Function(x) x.OrganizationId = orgId)
+            ' Shops last of the children: users reference them with ON DELETE RESTRICT, so the
+            ' accounts have to be gone first.
+            Purge(Of Shop)(Function(x) x.OrganizationId = orgId)
 
             orgRepo.Remove(org)
             Uow.SaveChanges()

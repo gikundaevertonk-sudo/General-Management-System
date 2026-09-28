@@ -1,7 +1,7 @@
 Namespace Forms
 
 <Global.Microsoft.VisualBasic.CompilerServices.DesignerGenerated()>
-Partial Class StockAdjustForm
+Partial Class StockAllocateForm
     Inherits System.Windows.Forms.Form
 
     <System.Diagnostics.DebuggerNonUserCode()>
@@ -19,11 +19,12 @@ Partial Class StockAdjustForm
 
     <System.Diagnostics.DebuggerStepThrough()>
     Private Sub InitializeComponent()
+        Me.lblFrom = New System.Windows.Forms.Label()
         Me.lblProduct = New System.Windows.Forms.Label()
-        Me.lblLocation = New System.Windows.Forms.Label()
-        Me.cboLocation = New System.Windows.Forms.ComboBox()
-        Me.lblDirection = New System.Windows.Forms.Label()
-        Me.cboDirection = New System.Windows.Forms.ComboBox()
+        Me.cboProduct = New System.Windows.Forms.ComboBox()
+        Me.lblAvailable = New System.Windows.Forms.Label()
+        Me.lblTo = New System.Windows.Forms.Label()
+        Me.cboTo = New System.Windows.Forms.ComboBox()
         Me.lblQty = New System.Windows.Forms.Label()
         Me.numQty = New System.Windows.Forms.NumericUpDown()
         Me.lblNote = New System.Windows.Forms.Label()
@@ -34,127 +35,109 @@ Partial Class StockAdjustForm
         CType(Me.numQty, System.ComponentModel.ISupportInitialize).BeginInit()
         Me.SuspendLayout()
         '
-        'lblProduct
+        Me.lblFrom.AutoSize = True
+        Me.lblFrom.Font = New System.Drawing.Font("Segoe UI Semibold", 11.0!)
+        Me.lblFrom.Location = New System.Drawing.Point(20, 16)
+        Me.lblFrom.Name = "lblFrom"
+        Me.lblFrom.Size = New System.Drawing.Size(62, 20)
+        Me.lblFrom.TabIndex = 0
+        Me.lblFrom.Text = "From"
         '
         Me.lblProduct.AutoSize = True
-        Me.lblProduct.Font = New System.Drawing.Font("Segoe UI Semibold", 11.0!)
-        Me.lblProduct.Location = New System.Drawing.Point(20, 16)
+        Me.lblProduct.ForeColor = System.Drawing.Color.FromArgb(107, 114, 128)
+        Me.lblProduct.Location = New System.Drawing.Point(20, 58)
         Me.lblProduct.Name = "lblProduct"
-        Me.lblProduct.Size = New System.Drawing.Size(62, 20)
-        Me.lblProduct.TabIndex = 0
+        Me.lblProduct.Size = New System.Drawing.Size(48, 15)
+        Me.lblProduct.TabIndex = 1
         Me.lblProduct.Text = "Product"
         '
-        'lblLocation
+        Me.cboProduct.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
+        Me.cboProduct.Location = New System.Drawing.Point(140, 54)
+        Me.cboProduct.Name = "cboProduct"
+        Me.cboProduct.Size = New System.Drawing.Size(300, 23)
+        Me.cboProduct.TabIndex = 2
         '
-        Me.lblLocation.AutoSize = True
-        Me.lblLocation.ForeColor = System.Drawing.Color.FromArgb(107, 114, 128)
-        Me.lblLocation.Location = New System.Drawing.Point(20, 58)
-        Me.lblLocation.Name = "lblLocation"
-        Me.lblLocation.Size = New System.Drawing.Size(55, 15)
-        Me.lblLocation.TabIndex = 10
-        Me.lblLocation.Text = "Location"
+        Me.lblAvailable.AutoSize = True
+        Me.lblAvailable.ForeColor = System.Drawing.Color.FromArgb(107, 114, 128)
+        Me.lblAvailable.Location = New System.Drawing.Point(140, 82)
+        Me.lblAvailable.Name = "lblAvailable"
+        Me.lblAvailable.Size = New System.Drawing.Size(300, 15)
+        Me.lblAvailable.TabIndex = 3
         '
-        'cboLocation
+        Me.lblTo.AutoSize = True
+        Me.lblTo.ForeColor = System.Drawing.Color.FromArgb(107, 114, 128)
+        Me.lblTo.Location = New System.Drawing.Point(20, 110)
+        Me.lblTo.Name = "lblTo"
+        Me.lblTo.Size = New System.Drawing.Size(48, 15)
+        Me.lblTo.TabIndex = 4
+        Me.lblTo.Text = "Send to"
         '
-        Me.cboLocation.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
-        Me.cboLocation.Location = New System.Drawing.Point(140, 54)
-        Me.cboLocation.Name = "cboLocation"
-        Me.cboLocation.Size = New System.Drawing.Size(230, 23)
-        Me.cboLocation.TabIndex = 11
-        '
-        'lblDirection
-        '
-        Me.lblDirection.AutoSize = True
-        Me.lblDirection.ForeColor = System.Drawing.Color.FromArgb(107, 114, 128)
-        Me.lblDirection.Location = New System.Drawing.Point(20, 94)
-        Me.lblDirection.Name = "lblDirection"
-        Me.lblDirection.Size = New System.Drawing.Size(58, 15)
-        Me.lblDirection.TabIndex = 1
-        Me.lblDirection.Text = "Direction"
-        '
-        'cboDirection
-        '
-        Me.cboDirection.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
-        Me.cboDirection.Items.AddRange(New Object() {"Increase (stock in)", "Decrease (stock out)"})
-        Me.cboDirection.Location = New System.Drawing.Point(140, 90)
-        Me.cboDirection.Name = "cboDirection"
-        Me.cboDirection.Size = New System.Drawing.Size(230, 23)
-        Me.cboDirection.TabIndex = 2
-        '
-        'lblQty
+        Me.cboTo.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList
+        Me.cboTo.Location = New System.Drawing.Point(140, 106)
+        Me.cboTo.Name = "cboTo"
+        Me.cboTo.Size = New System.Drawing.Size(300, 23)
+        Me.cboTo.TabIndex = 5
         '
         Me.lblQty.AutoSize = True
         Me.lblQty.ForeColor = System.Drawing.Color.FromArgb(107, 114, 128)
-        Me.lblQty.Location = New System.Drawing.Point(20, 128)
+        Me.lblQty.Location = New System.Drawing.Point(20, 144)
         Me.lblQty.Name = "lblQty"
         Me.lblQty.Size = New System.Drawing.Size(55, 15)
-        Me.lblQty.TabIndex = 3
+        Me.lblQty.TabIndex = 6
         Me.lblQty.Text = "Quantity"
         '
-        'numQty
-        '
         Me.numQty.DecimalPlaces = 3
-        Me.numQty.Location = New System.Drawing.Point(140, 124)
+        Me.numQty.Location = New System.Drawing.Point(140, 140)
         Me.numQty.Maximum = New Decimal(New Integer() {1000000, 0, 0, 0})
         Me.numQty.Name = "numQty"
         Me.numQty.Size = New System.Drawing.Size(120, 23)
-        Me.numQty.TabIndex = 4
+        Me.numQty.TabIndex = 7
         Me.numQty.Value = New Decimal(New Integer() {1, 0, 0, 0})
-        '
-        'lblNote
         '
         Me.lblNote.AutoSize = True
         Me.lblNote.ForeColor = System.Drawing.Color.FromArgb(107, 114, 128)
-        Me.lblNote.Location = New System.Drawing.Point(20, 162)
+        Me.lblNote.Location = New System.Drawing.Point(20, 178)
         Me.lblNote.Name = "lblNote"
-        Me.lblNote.Size = New System.Drawing.Size(82, 15)
-        Me.lblNote.TabIndex = 5
-        Me.lblNote.Text = "Reason / note"
+        Me.lblNote.Size = New System.Drawing.Size(32, 15)
+        Me.lblNote.TabIndex = 8
+        Me.lblNote.Text = "Note"
         '
-        'txtNote
-        '
-        Me.txtNote.Location = New System.Drawing.Point(140, 158)
+        Me.txtNote.Location = New System.Drawing.Point(140, 174)
         Me.txtNote.Name = "txtNote"
-        Me.txtNote.Size = New System.Drawing.Size(230, 23)
-        Me.txtNote.TabIndex = 6
-        '
-        'lblError
+        Me.txtNote.Size = New System.Drawing.Size(300, 23)
+        Me.txtNote.TabIndex = 9
         '
         Me.lblError.ForeColor = System.Drawing.Color.FromArgb(185, 28, 28)
-        Me.lblError.Location = New System.Drawing.Point(20, 192)
+        Me.lblError.Location = New System.Drawing.Point(20, 206)
         Me.lblError.Name = "lblError"
-        Me.lblError.Size = New System.Drawing.Size(360, 20)
-        Me.lblError.TabIndex = 7
-        '
-        'btnApply
+        Me.lblError.Size = New System.Drawing.Size(420, 34)
+        Me.lblError.TabIndex = 10
         '
         Me.btnApply.BackColor = System.Drawing.Color.FromArgb(37, 99, 235)
         Me.btnApply.FlatStyle = System.Windows.Forms.FlatStyle.Flat
         Me.btnApply.ForeColor = System.Drawing.Color.White
-        Me.btnApply.Location = New System.Drawing.Point(140, 222)
+        Me.btnApply.Location = New System.Drawing.Point(140, 248)
         Me.btnApply.Name = "btnApply"
-        Me.btnApply.Size = New System.Drawing.Size(120, 34)
-        Me.btnApply.TabIndex = 8
-        Me.btnApply.Text = "Apply"
+        Me.btnApply.Size = New System.Drawing.Size(180, 34)
+        Me.btnApply.TabIndex = 11
+        Me.btnApply.Text = "Allocate"
         Me.btnApply.UseVisualStyleBackColor = False
         '
-        'btnCancel
-        '
-        Me.btnCancel.Location = New System.Drawing.Point(270, 222)
+        Me.btnCancel.Location = New System.Drawing.Point(330, 248)
         Me.btnCancel.Name = "btnCancel"
-        Me.btnCancel.Size = New System.Drawing.Size(100, 34)
-        Me.btnCancel.TabIndex = 9
+        Me.btnCancel.Size = New System.Drawing.Size(110, 34)
+        Me.btnCancel.TabIndex = 12
         Me.btnCancel.Text = "Cancel"
         Me.btnCancel.UseVisualStyleBackColor = True
         '
-        'StockAdjustForm
+        'StockAllocateForm
         '
         Me.AcceptButton = Me.btnApply
         Me.AutoScaleDimensions = New System.Drawing.SizeF(7.0!, 15.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.BackColor = System.Drawing.Color.White
         Me.CancelButton = Me.btnCancel
-        Me.ClientSize = New System.Drawing.Size(400, 286)
+        Me.ClientSize = New System.Drawing.Size(464, 306)
         Me.Controls.Add(Me.btnCancel)
         Me.Controls.Add(Me.btnApply)
         Me.Controls.Add(Me.lblError)
@@ -162,28 +145,30 @@ Partial Class StockAdjustForm
         Me.Controls.Add(Me.lblNote)
         Me.Controls.Add(Me.numQty)
         Me.Controls.Add(Me.lblQty)
-        Me.Controls.Add(Me.cboDirection)
-        Me.Controls.Add(Me.lblDirection)
-        Me.Controls.Add(Me.cboLocation)
-        Me.Controls.Add(Me.lblLocation)
+        Me.Controls.Add(Me.cboTo)
+        Me.Controls.Add(Me.lblTo)
+        Me.Controls.Add(Me.lblAvailable)
+        Me.Controls.Add(Me.cboProduct)
         Me.Controls.Add(Me.lblProduct)
+        Me.Controls.Add(Me.lblFrom)
         Me.Font = New System.Drawing.Font("Segoe UI", 9.0!)
         Me.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog
         Me.MaximizeBox = False
         Me.MinimizeBox = False
-        Me.Name = "StockAdjustForm"
+        Me.Name = "StockAllocateForm"
         Me.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent
-        Me.Text = "Adjust stock"
+        Me.Text = "Allocate stock"
         CType(Me.numQty, System.ComponentModel.ISupportInitialize).EndInit()
         Me.ResumeLayout(False)
         Me.PerformLayout()
     End Sub
 
+    Friend WithEvents lblFrom As System.Windows.Forms.Label
     Friend WithEvents lblProduct As System.Windows.Forms.Label
-    Friend WithEvents lblLocation As System.Windows.Forms.Label
-    Friend WithEvents cboLocation As System.Windows.Forms.ComboBox
-    Friend WithEvents lblDirection As System.Windows.Forms.Label
-    Friend WithEvents cboDirection As System.Windows.Forms.ComboBox
+    Friend WithEvents cboProduct As System.Windows.Forms.ComboBox
+    Friend WithEvents lblAvailable As System.Windows.Forms.Label
+    Friend WithEvents lblTo As System.Windows.Forms.Label
+    Friend WithEvents cboTo As System.Windows.Forms.ComboBox
     Friend WithEvents lblQty As System.Windows.Forms.Label
     Friend WithEvents numQty As System.Windows.Forms.NumericUpDown
     Friend WithEvents lblNote As System.Windows.Forms.Label

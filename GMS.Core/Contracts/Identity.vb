@@ -12,6 +12,10 @@ Namespace Contracts
         Public Property RoleId As Integer
         Public Property RoleName As String = String.Empty
         Public Property OrganizationId As Integer
+        ''' <summary>The shop this account is confined to, or Nothing for the whole organization.</summary>
+        Public Property ShopId As Integer?
+        ''' <summary>Display name of <see cref="ShopId"/>, so a front end need not look it up to show it.</summary>
+        Public Property ShopName As String = String.Empty
         Public Property MustChangePassword As Boolean
         Public Property Permissions As IReadOnlyCollection(Of String) = New List(Of String)()
 
