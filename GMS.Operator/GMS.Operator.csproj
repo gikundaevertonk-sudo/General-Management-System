@@ -13,10 +13,10 @@
     <!-- Its own secrets store, so the operator credential is never alongside the tenant
          application's configuration. -->
     <UserSecretsId>gms-operator-2f1c9a64-0f5b-4d1e-9a7c-6b2d84e3f510</UserSecretsId>
-    <Version>1.0.4.0</Version>
-    <InformationalVersion>1.0.4</InformationalVersion>
-    <AssemblyVersion>1.0.4.0</AssemblyVersion>
-    <FileVersion>1.0.4.0</FileVersion>
+    <Version>1.0.5.0</Version>
+    <InformationalVersion>1.0.5</InformationalVersion>
+    <AssemblyVersion>1.0.5.0</AssemblyVersion>
+    <FileVersion>1.0.5.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>

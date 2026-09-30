@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -6,10 +6,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>GMS.Web</RootNamespace>
     <UserSecretsId>04c4188b-7ea6-48e9-a4b7-0a65afd69862</UserSecretsId>
-    <Version>1.0.4.0</Version>
-    <InformationalVersion>1.0.4</InformationalVersion>
-    <AssemblyVersion>1.0.4.0</AssemblyVersion>
-    <FileVersion>1.0.4.0</FileVersion>
+    <Version>1.0.5.0</Version>
+    <InformationalVersion>1.0.5</InformationalVersion>
+    <AssemblyVersion>1.0.5.0</AssemblyVersion>
+    <FileVersion>1.0.5.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
