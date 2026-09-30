@@ -24,15 +24,19 @@ Namespace Services
         Private ReadOnly _notifications As NotificationService
         Private ReadOnly _settings As SettingsService
         Private ReadOnly _audit As AuditService
+        Private ReadOnly _device As IDeviceIdentity
 
+        ''' <param name="device">Only the desktop client supplies one; see <see cref="NextNumber"/>.</param>
         Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, tenantContext As ITenantContext, clock As IClock,
                        inventory As InventoryService, notifications As NotificationService,
-                       settings As SettingsService, audit As AuditService)
+                       settings As SettingsService, audit As AuditService,
+                       Optional device As IDeviceIdentity = Nothing)
             MyBase.New(uow, currentUser, tenantContext, clock)
             _inventory = Guard.NotNull(inventory)
             _notifications = Guard.NotNull(notifications)
             _settings = Guard.NotNull(settings)
             _audit = Guard.NotNull(audit)
+            _device = device
         End Sub
 
         Public Function Search(options As QueryOptions,
@@ -287,9 +291,23 @@ Namespace Services
             Return Nothing
         End Function
 
+        ''' <remarks>
+        ''' A client that can work offline numbers in its own series, SAL-2026-K7Q2-0001, counting
+        ''' only what it issued itself. Counting everything would not do: two computers offline at
+        ''' the same time both see the same count and both issue the same next number, and neither
+        ''' finds out until they sync. Everyone else keeps the SAL-2026-0001 series.
+        ''' </remarks>
         Private Function NextNumber(type As TransactionType, [date] As DateTime) As String
             Dim prefix = Select_Prefix(type)
             Dim year = [date].Year
+            Dim code = _device?.DeviceCode
+            If Not String.IsNullOrEmpty(code) Then
+                Dim series = $"{prefix}-{year}-{code}-"
+                Dim issuedHere = Uow.Repository(Of Transaction)().Query().
+                    Count(Function(t) t.TransactionNumber.StartsWith(series))
+                Return $"{series}{(issuedHere + 1):0000}"
+            End If
+
             Dim countThisYear = Uow.Repository(Of Transaction)().Query().
                 Count(Function(t) t.Type = type AndAlso t.TransactionDate.Year = year)
             Return $"{prefix}-{year}-{(countThisYear + 1):0000}"

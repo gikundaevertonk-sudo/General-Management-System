@@ -137,6 +137,11 @@ live in an *Upgrades* section of ALTER statements further down. They are nullabl
 which is what makes them safe against live data — and for `shop_id`, NULL means "central pool",
 which is exactly what every row predating shops actually was.
 
+**Offline sync upgrade (required before deploying that build — web included):** run
+`db/supabase/migrations/2026-09-30-offline-sync.sql` once. It adds `sync_id` and `sync_version`
+to every table (both mapped by `GmsDbContext`, so the apps fail without them), triggers that
+stamp them, and a `sync_tombstones` table that records deletions. See **Working offline** below.
+
 **Both** `GMS.Web` and `GMS.Desktop` connect to the same Supabase database via the
 `ConnectionStrings:Gms` config key. Sources, lowest priority to highest:
 
@@ -243,7 +248,44 @@ everything they see is silently narrowed to it and an empty list should not read
 Every folder requires authentication (`AuthorizeFolder("/")`); pages add
 `[Authorize("perm:<code>")]` for finer control, and services enforce permissions again server-side.
 
+## Working offline (desktop)
+
+With a database configured, **GMS.Desktop works against a SQLite copy on the PC** and keeps it in
+step with PostgreSQL in the background (`GMS.Core/Sync`). When the internet drops, the shop keeps
+selling; changes queue up and are sent when the connection returns. GMS.Web stays online-only.
+
+- **Where:** `%LOCALAPPDATA%\GMS\gms-local-<server>.db`, one file per server (its ids belong to
+  that server). `LocalStore:Path` / `LocalStore__Path` moves it.
+- **Sign-in:** online when the server answers (and the organization is downloaded before the first
+  screen opens); otherwise against the local copy. A computer's **first** sign-in needs internet.
+- **Sync:** every 30 s and on demand. The sidebar shows *Online / Offline – N changes waiting /
+  Not sent*; click it to sync now or see what was refused.
+- **Ids:** rows created offline take negative local ids that never change; the server's id is
+  recorded beside them (`IdMapEntry`) and references are translated both ways. `SyncId` (a uuid on
+  every row) makes a resend after a dropped connection idempotent.
+- **Receipt numbers:** each install numbers in its own series, e.g. `SAL-2026-K7Q2-0001`, so two
+  offline tills can never issue the same number. The web keeps `SAL-2026-0001`.
+- **Conflicts:** an edit sends only the fields it changed, so edits to different fields of one
+  record both survive; the same field is last-write-wins. A deletion on the server wins.
+- **Stock:** totals are never sent; stock movements are, and the server adds their effect to its
+  own totals. If two tills sold the same last units offline, **both sales are kept**, stock goes
+  below zero, and a *Critical* "Stock below zero after offline sales" notification is raised.
+- **Not synced from the desktop:** organizations, subscriptions, roles and permissions (copied
+  down, never sent).
+- **Upgrades:** the local file is rebuilt when a new version changes the data model. If it still
+  holds unsent changes it is kept aside as `*.bak` and the user is told; sync before upgrading.
+
+**Testing sync:** `GMS.Tests/SyncTests.cs` and `PostgresQueryTests.cs` run only when
+`GMS_TEST_POSTGRES` names a disposable PostgreSQL server (each test creates and drops its own
+database — never point it at Supabase). `GMS_TEST_STORE=sqlite` runs the whole suite on the local
+store instead of the in-memory one.
+
 ## Current limitations
+
+- The local copy on each desktop is not encrypted: it holds the organization's data, including
+  users' password hashes, readable by anyone who can read that Windows profile.
+- A pull re-reads a margin of recent changes to catch slow transactions; one that stays open
+  longer than ~100 other writes can still be missed until that row changes again.
 
 - No UI to create custom roles or edit a role's permission set — `RoleService.Create`/
   `SetPermissions` exist and both UIs show roles read-only (name, description, permission

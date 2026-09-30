@@ -9,6 +9,7 @@ Imports GMS.Core.Repositories.Ef
 Imports GMS.Core.Repositories.InMemory
 Imports GMS.Core.Security
 Imports GMS.Core.Services
+Imports GMS.Core.Sync
 
 Namespace DependencyInjection
 
@@ -59,6 +60,27 @@ Namespace DependencyInjection
                     ' tracker to notice edits. Defaulting to no-tracking means a second read in
                     ' the same DbContext always reflects the database, not a stale first read.
                     ' That matters once more than one process (desktop + web) writes the same rows.
+                    options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)
+                End Sub)
+            services.TryAddScoped(Of IUnitOfWork, EfUnitOfWork)()
+            Return services
+        End Function
+
+        ''' <summary>
+        ''' Registers GMS.Core against a SQLite file on this machine: the desktop client's
+        ''' offline copy of its organization. The file is created from the EF model on first
+        ''' use (there is no hand-written schema for it), and every change made through it is
+        ''' queued for <see cref="Sync.SyncEngine"/> to send to PostgreSQL.
+        ''' Each front end must also register its own <see cref="ICurrentUser"/>.
+        ''' </summary>
+        <Extension>
+        Public Function AddGmsCoreSqlite(services As IServiceCollection, databasePath As String) As IServiceCollection
+            AddCommon(services)
+            Dim connectionString = LocalStore.ConnectionStringFor(databasePath)
+            services.AddDbContext(Of GmsDbContext)(
+                Sub(options)
+                    options.UseSqlite(connectionString)
+                    ' Same reasoning as the PostgreSQL registration above.
                     options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking)
                 End Sub)
             services.TryAddScoped(Of IUnitOfWork, EfUnitOfWork)()

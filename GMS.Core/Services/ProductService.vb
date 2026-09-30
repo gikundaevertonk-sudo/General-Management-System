@@ -210,8 +210,12 @@ Namespace Services
 
             If Not String.IsNullOrWhiteSpace(input.Sku) Then
                 Dim sku = input.Sku.Trim().ToLower()
+                ' A plain integer, not the Integer? parameter: EF names the SQL parameter after a
+                ' captured nullable's VB closure field, and Npgsql rejects the '$' in that name.
+                ' See ShopService.Validate.
+                Dim excludeId = If(existingId, 0)
                 Dim clash = Uow.Repository(Of Product)().Query().
-                    Any(Function(p) p.Sku.ToLower() = sku AndAlso (Not existingId.HasValue OrElse p.Id <> existingId.Value))
+                    Any(Function(p) p.Sku.ToLower() = sku AndAlso p.Id <> excludeId)
                 If clash Then errors.Add("Another product already uses that SKU.")
             End If
 

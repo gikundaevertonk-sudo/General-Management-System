@@ -31,7 +31,10 @@ public sealed class TestHost : IDisposable
     public FakeCurrentUser User { get; } = new();
     public FakeTenantContext Tenant { get; } = new();
 
-    public TestHost()
+    /// <param name="sqlite">Run against the desktop client's offline SQLite store instead.</param>
+    /// <param name="postgres">Run against this PostgreSQL database instead (see SyncTests).</param>
+    /// <param name="deviceCode">Number documents as the desktop client does, in this device's series.</param>
+    public TestHost(bool sqlite = false, string? postgres = null, string? deviceCode = null)
     {
         var services = new ServiceCollection();
 
@@ -39,12 +42,39 @@ public sealed class TestHost : IDisposable
         services.AddSingleton<IClock>(Clock);
         services.AddSingleton<ICurrentUser>(User);
         services.AddSingleton<ITenantContext>(Tenant);
+        if (deviceCode is not null)
+            services.AddSingleton<IDeviceIdentity>(new FixedDevice(deviceCode));
 
-        services.AddGmsCore();
+        if (postgres is not null)
+        {
+            services.AddGmsCorePostgres(postgres);
+        }
+        // GMS_TEST_STORE=sqlite runs the same tests against the desktop client's offline store,
+        // which, unlike the in-memory one, enforces foreign keys and the tenant query filters.
+        else if (sqlite || string.Equals(Environment.GetEnvironmentVariable("GMS_TEST_STORE"), "sqlite", StringComparison.OrdinalIgnoreCase))
+        {
+            _sqlitePath = Path.Combine(Path.GetTempPath(), $"gms-test-{Guid.NewGuid():N}.db");
+            services.AddGmsCoreSqlite(_sqlitePath);
+        }
+        else
+        {
+            services.AddGmsCore();
+        }
 
         _root = services.BuildServiceProvider();
         _scope = _root.CreateScope();
+
+        if (_sqlitePath is not null)
+            GMS.Core.Sync.LocalStore.Open(Get<GMS.Core.Data.GmsDbContext>(), _sqlitePath);
     }
+
+    private readonly string? _sqlitePath;
+
+    /// <summary>True when this host runs on SQLite (see the constructor).</summary>
+    public bool IsSqlite => _sqlitePath is not null;
+
+    /// <summary>The SQLite file, when <see cref="IsSqlite"/>.</summary>
+    public string SqlitePath => _sqlitePath ?? throw new InvalidOperationException("Not a SQLite host.");
 
     public T Get<T>() where T : notnull => _scope.ServiceProvider.GetRequiredService<T>();
 
@@ -75,7 +105,18 @@ public sealed class TestHost : IDisposable
     {
         _scope.Dispose();
         _root.Dispose();
+        if (_sqlitePath is null) return;
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        foreach (var suffix in new[] { "", "-wal", "-shm" })
+        {
+            try { File.Delete(_sqlitePath + suffix); } catch (IOException) { }
+        }
     }
+}
+
+public sealed class FixedDevice(string code) : IDeviceIdentity
+{
+    public string DeviceCode => code;
 }
 
 /// <summary>A clock the test moves on purpose. Trial and subscription rules are all date maths.</summary>

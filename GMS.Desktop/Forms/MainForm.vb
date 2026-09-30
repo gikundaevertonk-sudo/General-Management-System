@@ -52,6 +52,7 @@ Namespace Forms
                 .AutoSize = False, .Size = New Size(200, 44), .TextAlign = ContentAlignment.MiddleLeft,
                 .Margin = New Padding(0, 0, 0, 12)}
             _nav.Controls.Add(brand)
+            AddSyncStatus()
 
             AddNav("dashboard", "Dashboard", Nothing, Function() New DashboardView(AddressOf Navigate))
             AddNav("products", "Products", PermissionCodes.Products.View, Function() New ProductsView())
@@ -114,6 +115,86 @@ Namespace Forms
             AddHandler DesktopTheme.ThemeChanged, Sub() RefreshNavColors()
 
             Navigate("dashboard")
+        End Sub
+
+        Private _syncStatus As Button
+        Private ReadOnly _syncTips As New ToolTip()
+
+        ''' <summary>
+        ''' The line under the logo that says whether this computer is in step with the server.
+        ''' Clicking it syncs now, or first lists what could not be sent.
+        ''' </summary>
+        Private Sub AddSyncStatus()
+            Dim sync = AppHost.Current.Sync
+            If sync Is Nothing Then Return ' demo mode: nothing to sync
+
+            _syncStatus = NavLinkButton("")
+            _syncStatus.Margin = New Padding(6, 0, 6, 10)
+            AddHandler _syncStatus.Click, Sub() OnSyncStatusClicked()
+            _nav.Controls.Add(_syncStatus)
+
+            AddHandler sync.StatusChanged, AddressOf OnSyncStatusChanged
+            AddHandler sync.NegativeStockFound, AddressOf OnNegativeStock
+            ' The sync outlives this window (sign out, sign back in), so it must stop calling it.
+            AddHandler FormClosed, Sub()
+                                       RemoveHandler sync.StatusChanged, AddressOf OnSyncStatusChanged
+                                       RemoveHandler sync.NegativeStockFound, AddressOf OnNegativeStock
+                                   End Sub
+            AddHandler Shown, Sub() sync.Start()
+            ' The theme walker resets link colours; this one's colour carries the status.
+            AddHandler DesktopTheme.ThemeChanged, Sub() If Not IsDisposed Then OnSyncStatusChanged(sync, EventArgs.Empty)
+            OnSyncStatusChanged(sync, EventArgs.Empty)
+        End Sub
+
+        Private Sub OnSyncStatusChanged(sender As Object, e As EventArgs)
+            Dim sync = AppHost.Current.Sync
+            Dim waiting = If(sync.Pending = 1, "1 change waiting", $"{sync.Pending} changes waiting")
+            Dim text As String
+            Dim colour As Color
+            Select Case sync.State
+                Case SyncState.Syncing
+                    text = "Syncing..."
+                    colour = Color.FromArgb(147, 197, 253)
+                Case SyncState.UpToDate
+                    text = "Online - all saved"
+                    colour = Color.FromArgb(134, 239, 172)
+                Case SyncState.Offline
+                    text = If(sync.Pending = 0, "Offline - working locally", $"Offline - {waiting}")
+                    colour = Color.FromArgb(253, 224, 71)
+                Case SyncState.NeedsAttention
+                    text = $"Not sent - {waiting}"
+                    colour = Color.FromArgb(252, 165, 165)
+                Case Else
+                    text = "Connecting..."
+                    colour = Color.Gainsboro
+            End Select
+
+            _syncStatus.Text = "   " & ChrW(&H25CF) & " " & text
+            _syncStatus.ForeColor = colour
+            Dim contact = If(sync.LastContact.HasValue, $"Last reached the server at {sync.LastContact.Value:t}.", "Has not reached the server yet.")
+            _syncTips.SetToolTip(_syncStatus, contact & Environment.NewLine & "Click to sync now.")
+        End Sub
+
+        Private Sub OnSyncStatusClicked()
+            Dim sync = AppHost.Current.Sync
+            If sync.State = SyncState.NeedsAttention AndAlso sync.LastReport IsNot Nothing Then
+                Dim shown = sync.LastReport.Errors.Take(10).ToList()
+                Dim more = sync.LastReport.Errors.Count - shown.Count
+                UiKit.Info(Me,
+                    "These changes could not be sent to the server. They are kept on this computer " &
+                    "and will be tried again:" & Environment.NewLine & Environment.NewLine &
+                    String.Join(Environment.NewLine, shown) &
+                    If(more > 0, $"{Environment.NewLine}...and {more} more.", ""), "Not sent yet")
+            End If
+            sync.SyncNow()
+        End Sub
+
+        Private Sub OnNegativeStock(sender As Object, items As IReadOnlyList(Of String))
+            UiKit.Info(Me,
+                "Sales made on this computer while it was offline used stock that had already been " &
+                "sold elsewhere. The sales have been kept; please count and adjust:" &
+                Environment.NewLine & Environment.NewLine & String.Join(Environment.NewLine, items),
+                "Stock below zero")
         End Sub
 
         Private Shared Function ThemeToggleText() As String

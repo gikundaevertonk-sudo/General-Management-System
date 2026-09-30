@@ -211,8 +211,10 @@ Namespace Services
 
             If Not String.IsNullOrWhiteSpace(input.UserName) Then
                 Dim name = input.UserName.Trim().ToLower()
+                ' Plain integer rather than the Integer?; see ProductService.Validate.
+                Dim excludeId = If(existingId, 0)
                 Dim clash = Uow.Repository(Of User)().Query().
-                    Any(Function(u) u.UserName.ToLower() = name AndAlso (Not existingId.HasValue OrElse u.Id <> existingId.Value))
+                    Any(Function(u) u.UserName.ToLower() = name AndAlso u.Id <> excludeId)
                 If clash Then errors.Add("That username is already taken.")
             End If
             Return errors

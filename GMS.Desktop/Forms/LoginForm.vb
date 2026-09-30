@@ -1,5 +1,5 @@
+Imports System.Threading.Tasks
 Imports GMS.Core.Contracts
-Imports GMS.Core.Services
 Imports GMS.Desktop.App
 
 Namespace Forms
@@ -16,12 +16,21 @@ Namespace Forms
             txtUser.Text = "admin"
         End Sub
 
-        Private Sub btnSignIn_Click(sender As Object, e As EventArgs) Handles btnSignIn.Click
+        ''' <remarks>
+        ''' Runs off the UI thread: signing in online also brings this computer's copy of the
+        ''' organization up to date, which on the first sign-in is a full download.
+        ''' </remarks>
+        Private Async Sub btnSignIn_Click(sender As Object, e As EventArgs) Handles btnSignIn.Click
             lblError.Text = ""
             btnSignIn.Enabled = False
+            Dim caption = btnSignIn.Text
+            btnSignIn.Text = "Signing in..."
+            UseWaitCursor = True
             Try
-                Dim auth = AppHost.Current.Resolve(Of AuthService)()
-                Dim result = auth.SignInWithTenant(txtUser.Text.Trim(), txtPass.Text, txtOrg.Text.Trim())
+                Dim userName = txtUser.Text.Trim()
+                Dim password = txtPass.Text
+                Dim organization = txtOrg.Text.Trim()
+                Dim result = Await Task.Run(Function() AppHost.Current.SignIn(userName, password, organization))
                 If result.Failed Then
                     lblError.Text = result.ErrorMessage
                     txtPass.SelectAll()
@@ -32,7 +41,11 @@ Namespace Forms
                 Principal = result.Value
                 DialogResult = DialogResult.OK
                 Close()
+            Catch ex As Exception
+                lblError.Text = ex.Message
             Finally
+                UseWaitCursor = False
+                btnSignIn.Text = caption
                 btnSignIn.Enabled = True
             End Try
         End Sub

@@ -20,12 +20,18 @@ Namespace Global.GMS.Desktop
             Using host = AppHost.Current
                 host.EnsureSeeded()
                 WarnIfDemoMode(host)
+                If host.StartupNotice IsNot Nothing Then
+                    MessageBox.Show(host.StartupNotice, "GMS - local data rebuilt",
+                                    MessageBoxButtons.OK, MessageBoxIcon.Warning)
+                End If
 
                 Do
                     If Not RunSignIn(host) Then Exit Do
 
+                    ' MainForm starts the background sync once it is on screen.
                     Dim main As New MainForm()
                     Application.Run(main)
+                    host.Sync?.Stop()
 
                     If Not main.SignOutRequested Then Exit Do
                     host.Session.SignOut()
@@ -64,6 +70,10 @@ Namespace Global.GMS.Desktop
                     If login.ShowDialog() <> DialogResult.OK Then Return False
                     principal = login.Principal
                 End Using
+
+                ' Scoped before anything else reads the account: the forced password change below
+                ' looks the user up through the tenant filter.
+                host.Session.TenantId = principal.OrganizationId
 
                 If principal.MustChangePassword Then
                     Using change As New ChangePasswordForm(principal.UserId, forced:=True)

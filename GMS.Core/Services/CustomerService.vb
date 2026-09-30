@@ -104,8 +104,10 @@ Namespace Services
             End If
             If Not String.IsNullOrWhiteSpace(input.Code) Then
                 Dim code = input.Code.Trim().ToLower()
+                ' Plain integer rather than the Integer?; see ProductService.Validate.
+                Dim excludeId = If(existingId, 0)
                 Dim clash = Uow.Repository(Of Customer)().Query().
-                    Any(Function(c) c.Code.ToLower() = code AndAlso (Not existingId.HasValue OrElse c.Id <> existingId.Value))
+                    Any(Function(c) c.Code.ToLower() = code AndAlso c.Id <> excludeId)
                 If clash Then errors.Add("Another customer already uses that code.")
             End If
             Return errors

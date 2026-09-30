@@ -2,9 +2,11 @@
 Imports System.Threading
 Imports System.Threading.Tasks
 Imports Microsoft.EntityFrameworkCore
+Imports Microsoft.EntityFrameworkCore.Storage.ValueConversion
 Imports GMS.Core.Abstractions
 Imports GMS.Core.Common
 Imports GMS.Core.Models
+Imports GMS.Core.Sync
 
 Namespace Data
 
@@ -182,7 +184,76 @@ Namespace Data
             ' navigation property, so EF leaves them as plain integer columns (no FK) â€” matching
             ' the schema, where audit/notification rows must outlive a deleted user.
 
+            For Each entity In b.Model.GetEntityTypes().ToList()
+                If Not GetType(EntityBase).IsAssignableFrom(entity.ClrType) Then Continue For
+                b.Entity(entity.ClrType).HasIndex(NameOf(EntityBase.SyncId)).IsUnique()
+            Next
+
+            If IsLocalStore Then
+                ConfigureLocalStore(b)
+            ElseIf IsPostgres Then
+                ' Stamped by a trigger on every insert and update (db/supabase/migrations), so the
+                ' desktop sync can ask for "everything changed since I last looked". EF must never
+                ' write it, only read it back.
+                For Each entity In b.Model.GetEntityTypes().ToList()
+                    If Not GetType(EntityBase).IsAssignableFrom(entity.ClrType) Then Continue For
+                    b.Entity(entity.ClrType).Property(Of Long)(SyncVersionProperty).ValueGeneratedOnAddOrUpdate()
+                Next
+            End If
+
             ApplySnakeCaseNames(b)
+        End Sub
+
+        ''' <summary>Shadow property on PostgreSQL rows: when each was last changed, in sync order.</summary>
+        Public Const SyncVersionProperty As String = "SyncVersion"
+
+        ''' <summary>True for the desktop client's SQLite copy (see <see cref="Sync.LocalStore"/>).</summary>
+        Public ReadOnly Property IsLocalStore As Boolean
+            Get
+                Return Database.ProviderName = "Microsoft.EntityFrameworkCore.Sqlite"
+            End Get
+        End Property
+
+        Private ReadOnly Property IsPostgres As Boolean
+            Get
+                Return Database.ProviderName = "Npgsql.EntityFrameworkCore.PostgreSQL"
+            End Get
+        End Property
+
+        ''' <summary>
+        ''' Set by the sync while it copies the server's rows down, so those are not queued to be
+        ''' sent straight back. Everything the screens save is queued.
+        ''' </summary>
+        Public Property SuppressOutbox As Boolean
+
+        Private Shared Sub ConfigureLocalStore(b As ModelBuilder)
+            ' Rows created here take negative ids; see LocalIdGenerator.
+            For Each entity In b.Model.GetEntityTypes().ToList()
+                If Not GetType(EntityBase).IsAssignableFrom(entity.ClrType) Then Continue For
+                b.Entity(entity.ClrType).Property(NameOf(EntityBase.Id)).
+                    HasValueGenerator(GetType(LocalIdGenerator))
+            Next
+
+            ' SQLite stores a DateTime as text and hands it back with Kind=Unspecified. Every
+            ' timestamp in GMS is UTC, and PostgreSQL refuses anything not marked so, so a row
+            ' read here could not be sent without this. It also keeps the screens seeing the same
+            ' kind of value from either store.
+            Dim asUtc As New ValueConverter(Of DateTime, DateTime)(
+                Function(v) v, Function(v) DateTime.SpecifyKind(v, DateTimeKind.Utc))
+            For Each entity In b.Model.GetEntityTypes().ToList()
+                For Each prop In entity.GetProperties().ToList()
+                    If prop.ClrType Is GetType(DateTime) OrElse prop.ClrType Is GetType(DateTime?) Then
+                        prop.SetValueConverter(asUtc)
+                    End If
+                Next
+            Next
+
+            b.Entity(Of OutboxEntry)().HasKey(Function(o) o.Seq)
+            b.Entity(Of OutboxEntry)().Property(Function(o) o.Seq).ValueGeneratedOnAdd()
+            b.Entity(Of OutboxEntry)().HasIndex(Function(o) New With {o.EntityName, o.LocalId})
+            b.Entity(Of IdMapEntry)().HasKey(Function(m) New With {m.EntityName, m.LocalId})
+            b.Entity(Of IdMapEntry)().HasIndex(Function(m) New With {m.EntityName, m.ServerId}).IsUnique()
+            b.Entity(Of LocalSyncState)().HasKey(Function(s) s.Key)
         End Sub
 
         Public Const OrganizationIdProperty As String = "OrganizationId"
@@ -202,12 +273,14 @@ Namespace Data
         ''' </remarks>
         Public Overrides Function SaveChanges(acceptAllChangesOnSuccess As Boolean) As Integer
             StampTenantOnNewRows()
+            QueueForSync()
             Return MyBase.SaveChanges(acceptAllChangesOnSuccess)
         End Function
 
         Public Overrides Function SaveChangesAsync(acceptAllChangesOnSuccess As Boolean,
                                                    Optional cancellationToken As CancellationToken = Nothing) As Task(Of Integer)
             StampTenantOnNewRows()
+            QueueForSync()
             Return MyBase.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken)
         End Function
 
@@ -223,6 +296,81 @@ Namespace Data
                 Dim current = tracked.Property(OrganizationIdProperty)
                 If CInt(If(current.CurrentValue, 0)) = 0 Then current.CurrentValue = CurrentTenantId
             Next
+        End Sub
+
+        ''' <summary>
+        ''' On the local store, adds an outbox row for every change the sync will need to send,
+        ''' inside the same save as the change itself.
+        ''' </summary>
+        ''' <remarks>
+        ''' Updates record which properties actually differ from what is stored. Repositories mark
+        ''' a whole entity modified on every Update, so without comparing, every edit would claim
+        ''' to have changed every field, and sending it would overwrite fields someone else changed
+        ''' on the server in the meantime.
+        ''' </remarks>
+        Private Sub QueueForSync()
+            If Not IsLocalStore OrElse SuppressOutbox Then Return
+
+            Dim now = DateTime.UtcNow
+            Dim queued As New List(Of OutboxEntry)()
+            Dim entries = ChangeTracker.Entries().
+                Where(Function(e) TypeOf e.Entity Is EntityBase AndAlso SyncCatalog.IsPushed(e.Metadata.ClrType)).
+                ToList()
+
+            ' EF can hold two instances of one row in a single save: the one it was tracking,
+            ' orphaned and so marked Deleted, and a fresh copy of the same row attached as Added
+            ' or Modified (TransactionService.Confirm does this with a document's lines). EF writes
+            ' that pair as an UPDATE, so it must be recorded as one - taken at face value it would
+            ' queue the row's deletion while the row is still here.
+            Dim rewritten = entries.
+                Where(Function(e) e.State = EntityState.Deleted).
+                Select(Function(e) (e.Metadata.ClrType, DirectCast(e.Entity, EntityBase).Id)).
+                Intersect(entries.
+                    Where(Function(e) e.State = EntityState.Added OrElse e.State = EntityState.Modified).
+                    Select(Function(e) (e.Metadata.ClrType, DirectCast(e.Entity, EntityBase).Id))).
+                ToHashSet()
+
+            For Each tracked In entries
+                Dim row = DirectCast(tracked.Entity, EntityBase)
+                Dim isRewrite = rewritten.Contains((tracked.Metadata.ClrType, row.Id))
+                If isRewrite AndAlso tracked.State = EntityState.Deleted Then Continue For
+
+                ' The row's own organization where it has one: sign-in writes the user and an
+                ' audit entry before the session has been scoped to that organization.
+                Dim owner = CurrentTenantId
+                Dim ownProperty = tracked.Metadata.FindProperty(OrganizationIdProperty)
+                If ownProperty IsNot Nothing AndAlso ownProperty.ClrType Is GetType(Integer) Then
+                    Dim value = CInt(If(tracked.Property(OrganizationIdProperty).CurrentValue, 0))
+                    If value <> 0 Then owner = value
+                End If
+
+                Dim entry As New OutboxEntry With {
+                    .OrganizationId = owner,
+                    .EntityName = tracked.Metadata.ClrType.Name,
+                    .LocalId = row.Id,
+                    .RowSyncId = row.SyncId,
+                    .CreatedAtUtc = now}
+
+                If tracked.State = EntityState.Added AndAlso Not isRewrite Then
+                    entry.Operation = OutboxOperation.Insert
+                ElseIf tracked.State = EntityState.Deleted Then
+                    entry.Operation = OutboxOperation.Delete
+                ElseIf tracked.State = EntityState.Modified OrElse isRewrite Then
+                    Dim stored = tracked.GetDatabaseValues()
+                    If stored Is Nothing Then Continue For
+                    Dim changed = tracked.Metadata.GetProperties().
+                        Where(Function(p) Not p.IsPrimaryKey() AndAlso
+                                          Not Object.Equals(tracked.CurrentValues(p), stored(p))).
+                        Select(Function(p) p.Name).ToList()
+                    If changed.Count = 0 Then Continue For
+                    entry.Operation = OutboxOperation.Update
+                    entry.ChangedProperties = String.Join(","c, changed)
+                Else
+                    Continue For
+                End If
+                queued.Add(entry)
+            Next
+            If queued.Count > 0 Then [Set](Of OutboxEntry)().AddRange(queued)
         End Sub
 
         ''' <summary>Renames every table and column to snake_case to match the hand-written schema.</summary>
