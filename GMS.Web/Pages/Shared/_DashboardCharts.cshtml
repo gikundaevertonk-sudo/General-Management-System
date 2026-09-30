@@ -1,0 +1,156 @@
+@model GMS.Core.Contracts.DashboardCharts
+@using System.Globalization
+@{
+    // Drawn on the server as plain SVG: no chart library to ship with the installer, it works
+    // offline, and every colour comes from the theme tokens in site.css so dark mode follows.
+    var inv = CultureInfo.InvariantCulture;
+    var pts = Model.DailySales;
+    var periodTotal = pts.Sum(p => p.Total);
+    var periodCount = pts.Sum(p => p.TransactionCount);
+
+    // Plot geometry in viewBox units; the SVG scales to its container.
+    const double W = 640, H = 220, L = 52, R = 12, T = 12, B = 26;
+    double plotW = W - L - R, plotH = H - T - B;
+
+    // Round the top of the scale up to 1, 2 or 5 x a power of ten so the gridlines land on
+    // numbers a person would pick.
+    var max = (double)(pts.Count == 0 ? 0 : pts.Max(p => p.Total));
+    double niceMax;
+    if (max <= 0) niceMax = 100;
+    else
+    {
+        var mag = Math.Pow(10, Math.Floor(Math.Log10(max)));
+        var f = max / mag;
+        niceMax = (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * mag;
+    }
+    const int gridLines = 4;
+
+    double X(int i) => pts.Count <= 1 ? L + plotW / 2 : L + i * plotW / (pts.Count - 1);
+    double Y(decimal v) => T + plotH - (double)v / niceMax * plotH;
+    string N(double v) => v.ToString("0.#", inv);
+    string Short(double v) => v >= 1_000_000 ? (v / 1_000_000).ToString("0.#", inv) + "M"
+                            : v >= 1_000 ? (v / 1_000).ToString("0.#", inv) + "k"
+                            : v.ToString("0", inv);
+
+    var line = string.Join(" ", pts.Select((p, i) => $"{(i == 0 ? "M" : "L")}{N(X(i))},{N(Y(p.Total))}"));
+    var area = pts.Count == 0 ? "" : $"{line} L{N(X(pts.Count - 1))},{N(T + plotH)} L{N(X(0))},{N(T + plotH)} Z";
+    var slot = pts.Count <= 1 ? plotW : plotW / (pts.Count - 1);
+
+    var top = Model.TopProducts;
+    var topMax = top.Count == 0 ? 0m : top.Max(p => p.Revenue);
+}
+
+<div class="row g-3 mb-4">
+    <div class="col-12 col-xl-7">
+        <div class="card chart-card h-100">
+            <div class="card-body">
+                <div class="chart-head">
+                    <div>
+                        <h2 class="chart-title">Sales trend</h2>
+                        <div class="chart-sub">Confirmed sales per day · last @Model.Days days</div>
+                    </div>
+                    <div class="chart-kpi">
+                        <div class="chart-kpi-value">@periodTotal.ToString("N2")</div>
+                        <div class="chart-sub">@periodCount.ToString("N0") sales</div>
+                    </div>
+                </div>
+
+                @if (periodCount == 0)
+                {
+                    <div class="chart-empty">No confirmed sales in the last @Model.Days days.</div>
+                }
+                else
+                {
+                    <div class="chart-wrap" data-chart="trend">
+                        <svg viewBox="0 0 @N(W) @N(H)" class="chart-svg" role="img"
+                             aria-label="Daily sales over the last @Model.Days days, totalling @periodTotal.ToString("N2")">
+                            <defs>
+                                <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stop-color="var(--gms-chart-1)" stop-opacity=".28" />
+                                    <stop offset="100%" stop-color="var(--gms-chart-1)" stop-opacity="0" />
+                                </linearGradient>
+                            </defs>
+                            @for (var g = 0; g <= gridLines; g++)
+                            {
+                                var v = niceMax * g / gridLines;
+                                var y = T + plotH - plotH * g / gridLines;
+                                <line x1="@N(L)" x2="@N(W - R)" y1="@N(y)" y2="@N(y)" class="@(g == 0 ? "chart-axis" : "chart-grid")" />
+                                @Html.Raw($"<text x=\"{N(L - 8)}\" y=\"{N(y + 4)}\" text-anchor=\"end\" class=\"chart-tick\">{Short(v)}</text>")
+                            }
+                            @foreach (var i in new[] { 0, pts.Count / 2, pts.Count - 1 }.Distinct())
+                            {
+                                var anchor = i == 0 ? "start" : i == pts.Count - 1 ? "end" : "middle";
+                                @Html.Raw($"<text x=\"{N(X(i))}\" y=\"{N(H - 6)}\" text-anchor=\"{anchor}\" class=\"chart-tick\">{pts[i].Day.ToString("d MMM", inv)}</text>")
+                            }
+                            <path d="@area" fill="url(#trendFill)" />
+                            <path d="@line" class="chart-line" />
+                            <line class="chart-crosshair" y1="@N(T)" y2="@N(T + plotH)" x1="0" x2="0" />
+                            <circle class="chart-dot" r="4.5" cx="0" cy="0" />
+                            @for (var i = 0; i < pts.Count; i++)
+                            {
+                                var p = pts[i];
+                                <rect class="chart-hit" x="@N(Math.Max(L, X(i) - slot / 2))" y="@N(T)" width="@N(slot)" height="@N(plotH)"
+                                      data-x="@N(X(i))" data-y="@N(Y(p.Total))"
+                                      data-label="@p.Day.ToString("ddd d MMM", inv)"
+                                      data-value="@p.Total.ToString("N2")"
+                                      data-note="@(p.TransactionCount == 1 ? "1 sale" : $"{p.TransactionCount:N0} sales")" />
+                            }
+                        </svg>
+                        <div class="chart-tooltip" hidden></div>
+                    </div>
+                    <details class="chart-table">
+                        <summary>Show as table</summary>
+                        <div class="table-responsive mt-2" style="max-height:220px">
+                            <table class="table table-sm mb-0">
+                                <thead><tr><th>Day</th><th class="text-end">Sales</th><th class="text-end">Total</th></tr></thead>
+                                <tbody>
+                                @foreach (var p in pts.AsEnumerable().Reverse())
+                                {
+                                    <tr><td>@p.Day.ToString("ddd d MMM", inv)</td><td class="text-end">@p.TransactionCount</td><td class="text-end">@p.Total.ToString("N2")</td></tr>
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    </details>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-5">
+        <div class="card chart-card h-100">
+            <div class="card-body">
+                <div class="chart-head">
+                    <div>
+                        <h2 class="chart-title">Top products</h2>
+                        <div class="chart-sub">By revenue · last @Model.Days days</div>
+                    </div>
+                </div>
+
+                @if (top.Count == 0)
+                {
+                    <div class="chart-empty">Nothing sold in the last @Model.Days days.</div>
+                }
+                else
+                {
+                    <ul class="bar-list" aria-label="Top products by revenue">
+                        @foreach (var p in top)
+                        {
+                            var pct = topMax <= 0 ? 0 : (double)(p.Revenue / topMax) * 100;
+                            <li class="bar-row" title="@p.ProductName: @p.Revenue.ToString("N2") from @p.QuantitySold.ToString("0.##") sold">
+                                <div class="bar-meta">
+                                    <span class="bar-name">@p.ProductName</span>
+                                    <span class="bar-value">@p.Revenue.ToString("N2")</span>
+                                </div>
+                                <div class="bar-track">
+                                    <div class="bar-fill" style="width:@Math.Max(pct, 1.5).ToString("0.##", inv)%"></div>
+                                </div>
+                                <div class="bar-note">@p.QuantitySold.ToString("0.##") sold</div>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+    </div>
+</div>

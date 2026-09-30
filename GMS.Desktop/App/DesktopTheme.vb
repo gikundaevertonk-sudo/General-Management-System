@@ -250,6 +250,9 @@ Namespace App
                 grid.ColumnHeadersDefaultCellStyle.BackColor =
                     If(dark, Color.FromArgb(26, 34, 51), original.GridHeaderBack)
                 grid.ColumnHeadersDefaultCellStyle.ForeColor = If(dark, DarkText, original.GridHeaderFore)
+                ' Without these the header above the current cell is drawn in the system highlight blue.
+                grid.ColumnHeadersDefaultCellStyle.SelectionBackColor = grid.ColumnHeadersDefaultCellStyle.BackColor
+                grid.ColumnHeadersDefaultCellStyle.SelectionForeColor = grid.ColumnHeadersDefaultCellStyle.ForeColor
                 Return
             End If
         End Sub
@@ -259,11 +262,12 @@ Namespace App
         Private Function MapBack(c As Color) As Color
             Select Case ToKey(c)
                 Case ToKey(Color.White) : Return DarkCard
-                Case ToKey(Color.FromArgb(243, 244, 246)) : Return DarkPage          ' page background
+                Case ToKey(UiKit.PageBack) : Return DarkPage                          ' page background
                 Case ToKey(Color.FromArgb(249, 250, 251)) : Return Color.FromArgb(26, 34, 51)   ' grid header
-                Case ToKey(Color.FromArgb(17, 24, 39)) : Return Color.FromArgb(11, 18, 32)      ' sidebar
-                Case ToKey(Color.FromArgb(31, 41, 55)) : Return Color.FromArgb(30, 41, 59)      ' sidebar hover
+                Case ToKey(UiKit.Sidebar) : Return Color.FromArgb(11, 18, 32)             ' sidebar
+                Case ToKey(UiKit.SidebarHover) : Return Color.FromArgb(30, 41, 59)        ' sidebar hover
                 Case ToKey(Color.FromArgb(219, 234, 254)) : Return Color.FromArgb(30, 58, 95)   ' selection
+                Case ToKey(UiKit.ButtonTint) : Return Color.FromArgb(26, 41, 74)                ' secondary button
                 Case ToKey(Color.FromArgb(37, 99, 235)) : Return Color.FromArgb(59, 130, 246)   ' accent
                 Case ToKey(Color.FromArgb(30, 64, 175)) : Return Color.FromArgb(37, 99, 235)    ' accent hover
                 Case ToKey(SystemColors.Control) : Return DarkPage
@@ -281,6 +285,7 @@ Namespace App
                 Case ToKey(Color.FromArgb(31, 41, 55)) : Return DarkText                         ' body text
                 Case ToKey(Color.Black) : Return DarkText
                 Case ToKey(Color.FromArgb(37, 99, 235)) : Return Color.FromArgb(96, 165, 250)    ' accent text
+                Case ToKey(UiKit.AccentDark) : Return Color.FromArgb(147, 197, 253)              ' secondary button text
                 Case ToKey(Color.FromArgb(185, 28, 28)) : Return Color.FromArgb(248, 113, 113)   ' error red
                 Case ToKey(Color.FromArgb(147, 197, 253)) : Return Color.FromArgb(125, 211, 252) ' sidebar link
                 Case ToKey(Color.Gainsboro) : Return Color.FromArgb(203, 213, 225)               ' sidebar nav
@@ -323,8 +328,21 @@ Namespace App
             Public ReadOnly GridHeaderFore As Color
 
             Public Sub New(control As Control)
+                ' A control that sets no colour of its own reports its parent's current one. When the
+                ' app starts in dark mode that is already the dark value, so capturing it as the
+                ' "original" made light mode restore near-white text onto a white page. Such a
+                ' control takes its parent's captured original instead.
+                Dim parent = control.Parent
+                Dim inherited As OriginalColors = Nothing
+                If parent IsNot Nothing Then _originals.TryGetValue(parent, inherited)
+
                 Back = control.BackColor
+                If inherited IsNot Nothing AndAlso Not IsExplicit(control, "BackColor") AndAlso
+                   control.BackColor.ToArgb() = parent.BackColor.ToArgb() Then Back = inherited.Back
+
                 Fore = control.ForeColor
+                If inherited IsNot Nothing AndAlso Not IsExplicit(control, "ForeColor") AndAlso
+                   control.ForeColor.ToArgb() = parent.ForeColor.ToArgb() Then Fore = inherited.Fore
 
                 Dim button = TryCast(control, Button)
                 If button IsNot Nothing Then
@@ -344,6 +362,12 @@ Namespace App
                     GridHeaderFore = grid.ColumnHeadersDefaultCellStyle.ForeColor
                 End If
             End Sub
+
+            ''' <summary>True when the property was set on this control rather than inherited or defaulted.</summary>
+            Private Shared Function IsExplicit(control As Control, propertyName As String) As Boolean
+                Dim descriptor = System.ComponentModel.TypeDescriptor.GetProperties(control)(propertyName)
+                Return descriptor IsNot Nothing AndAlso descriptor.ShouldSerializeValue(control)
+            End Function
         End Class
 
     End Module

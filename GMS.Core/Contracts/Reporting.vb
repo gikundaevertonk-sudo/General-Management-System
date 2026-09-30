@@ -101,6 +101,44 @@ Namespace Contracts
         Public Property UnitCost As Decimal
         Public Property ValueAtCost As Decimal
         Public Property BelowReorderLevel As Boolean
+
+        ''' <summary>What the product sells for here, whether set for this shop or inherited.</summary>
+        Public Property UnitPrice As Decimal
+        ''' <summary>True when this shop has a price of its own rather than the catalogue's.</summary>
+        Public Property HasOwnPrice As Boolean
+    End Class
+
+    ''' <summary>
+    ''' One sign-in, for the audit trail. Clicking it lists everything done in that session.
+    ''' </summary>
+    Public NotInheritable Class LoginSessionRow
+        ''' <summary>Id of the audit row recording the sign-in; the key for the drill-down.</summary>
+        Public Property AuditEntryId As Integer
+        Public Property UserId As Integer?
+        Public Property UserName As String = String.Empty
+        Public Property FullName As String = String.Empty
+        Public Property ShopName As String = String.Empty
+        Public Property SignedInAtUtc As DateTime
+        ''' <summary>When the next sign-in by the same account happened; Nothing if this is the latest.</summary>
+        Public Property EndedAtUtc As DateTime?
+        ''' <summary>Recorded changes made during the session.</summary>
+        Public Property ActionCount As Integer
+        ''' <summary>Transactions raised during the session.</summary>
+        Public Property TransactionCount As Integer
+    End Class
+
+    ''' <summary>One thing done during a login session.</summary>
+    Public NotInheritable Class SessionActivityRow
+        Public Property WhenUtc As DateTime
+        Public Property Action As AuditAction
+        Public Property EntityName As String = String.Empty
+        Public Property EntityId As String = String.Empty
+        Public Property Summary As String = String.Empty
+        Public Property ChangesJson As String = String.Empty
+        ''' <summary>Set when the row is a transaction, so the UI can link straight to it.</summary>
+        Public Property TransactionId As Integer?
+        Public Property TransactionNumber As String = String.Empty
+        Public Property TransactionTotal As Decimal?
     End Class
 
     ''' <summary>One shop as it appears on the organization's shop list.</summary>

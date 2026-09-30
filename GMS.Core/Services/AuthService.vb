@@ -11,10 +11,13 @@ Namespace Services
         Inherits ServiceBase
 
         Private ReadOnly _hasher As IPasswordHasher
+        Private ReadOnly _audit As AuditService
 
-        Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, tenantContext As ITenantContext, clock As IClock, hasher As IPasswordHasher)
+        Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, tenantContext As ITenantContext, clock As IClock,
+                       hasher As IPasswordHasher, audit As AuditService)
             MyBase.New(uow, currentUser, tenantContext, clock)
             _hasher = Guard.NotNull(hasher)
+            _audit = Guard.NotNull(audit)
         End Sub
 
         Public Function SignIn(userName As String, password As String) As Result(Of AuthenticatedUser)
@@ -45,6 +48,7 @@ Namespace Services
             user.LockedOutUntilUtc = Nothing
             user.LastLoginUtc = Clock.UtcNow
             users.Update(user)
+            _audit.RecordLogin(user.Id, user.UserName, user.OrganizationId)
             Uow.SaveChanges()
 
             Return Result(Of AuthenticatedUser).Ok(Project(user))
@@ -93,6 +97,7 @@ Namespace Services
             user.LockedOutUntilUtc = Nothing
             user.LastLoginUtc = Clock.UtcNow
             users.Update(user)
+            _audit.RecordLogin(user.Id, user.UserName, user.OrganizationId)
             Uow.SaveChanges()
 
             WarnAboutExpiry(organization.Id)

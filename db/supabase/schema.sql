@@ -247,6 +247,7 @@ create table if not exists shop_stocks (
     shop_id integer NOT NULL,
     product_id integer NOT NULL,
     quantity_on_hand numeric(18,6) NOT NULL,
+    unit_price numeric(18,6),
     CONSTRAINT "PK_shop_stocks" PRIMARY KEY (id),
     CONSTRAINT "FK_shop_stocks_organizations_organization_id" FOREIGN KEY (organization_id) REFERENCES organizations (id) ON DELETE CASCADE,
     CONSTRAINT "FK_shop_stocks_products_product_id" FOREIGN KEY (product_id) REFERENCES products (id) ON DELETE CASCADE,
@@ -415,9 +416,13 @@ create index if not exists "IX_shop_stocks_shop_id" ON shop_stocks (shop_id);
 -- existing row keeps NULL, and NULL shop_id means "central pool" - exactly what
 -- every row predating shops actually was.
 -- ============================================================================
-alter table users          add column if not exists shop_id integer;
-alter table transactions   add column if not exists shop_id integer;
+alter table users           add column if not exists shop_id integer;
+alter table transactions    add column if not exists shop_id integer;
 alter table stock_movements add column if not exists shop_id integer;
+
+-- Per-shop selling price. NULL means "use the catalogue price", which is what
+-- every shop was doing before prices could differ by branch.
+alter table shop_stocks     add column if not exists unit_price numeric(18,6);
 
 -- Added separately from the columns because ADD CONSTRAINT has no IF NOT EXISTS.
 do $$

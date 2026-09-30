@@ -65,6 +65,70 @@ Namespace Services
         End Function
 
         ''' <summary>
+        ''' Daily takings and best sellers over the last <paramref name="days"/> days, today included.
+        ''' </summary>
+        ''' <remarks>
+        ''' Needs Reports.View, unlike the summary: these are the sales figures in another shape, so
+        ''' anyone who cannot run the sales report must not be able to read them off a chart either.
+        ''' A caller pinned to a shop sees their own shop's, for the same reason as above.
+        ''' </remarks>
+        Public Function GetCharts(Optional days As Integer = 30, Optional topCount As Integer = 6) As Result(Of DashboardCharts)
+            If Denied(PermissionCodes.Reports.View) Then Return Forbidden(Of DashboardCharts)()
+            days = Math.Clamp(days, 1, 366)
+            topCount = Math.Clamp(topCount, 1, 20)
+
+            Dim firstDay = DateTime.SpecifyKind(Clock.UtcNow.Date.AddDays(1 - days), DateTimeKind.Utc)
+            Dim window As New DateRange(firstDay, firstDay.AddDays(days))
+
+            Dim q = Uow.Repository(Of Transaction)().Query().
+                Where(Function(t) t.Type = TransactionType.Sale _
+                              AndAlso t.Status = TransactionStatus.Confirmed _
+                              AndAlso t.TransactionDate >= window.FromUtc _
+                              AndAlso t.TransactionDate < window.ToUtc)
+            Dim pinned = PinnedShopId
+            If pinned.HasValue Then
+                Dim mine = pinned.Value
+                q = q.Where(Function(t) t.ShopId.HasValue AndAlso t.ShopId.Value = mine)
+            End If
+            Dim txns = q.Select(Function(t) New With {t.Id, t.TransactionDate, t.Total}).ToList()
+
+            ' Grouped in memory: bucketing a timestamptz by day in SQL is provider-specific, and a
+            ' month of one organisation's sales is small.
+            Dim byDay = txns.GroupBy(Function(t) t.TransactionDate.Date).
+                ToDictionary(Function(g) g.Key, Function(g) (Total:=g.Sum(Function(t) t.Total), Count:=g.Count()))
+            Dim daily = Enumerable.Range(0, days).Select(Function(i)
+                                                             Dim d = firstDay.AddDays(i)
+                                                             Dim hit = byDay.GetValueOrDefault(d.Date)
+                                                             Return New DailySalesPoint With {
+                                                                 .Day = d, .Total = hit.Total, .TransactionCount = hit.Count}
+                                                         End Function).ToList()
+
+            Dim txnIds = txns.Select(Function(t) t.Id).ToHashSet()
+            Dim top = Uow.Repository(Of TransactionLine)().Query().
+                Where(Function(l) txnIds.Contains(l.TransactionId)).
+                Select(Function(l) New With {l.ProductId, l.Quantity, l.LineSubtotal}).ToList().
+                GroupBy(Function(l) l.ProductId).
+                Select(Function(g) New TopProductPoint With {
+                    .ProductId = g.Key,
+                    .QuantitySold = g.Sum(Function(l) l.Quantity),
+                    .Revenue = g.Sum(Function(l) l.LineSubtotal)
+                }).
+                OrderByDescending(Function(p) p.Revenue).Take(topCount).ToList()
+
+            Dim ids = top.Select(Function(p) p.ProductId).ToList()
+            Dim names = Uow.Repository(Of Product)().Query().
+                Where(Function(p) ids.Contains(p.Id)).
+                Select(Function(p) New With {p.Id, p.Name}).ToList().
+                ToDictionary(Function(p) p.Id, Function(p) p.Name)
+            For Each p In top
+                p.ProductName = If(names.GetValueOrDefault(p.ProductId), "(deleted product)")
+            Next
+
+            Return Result(Of DashboardCharts).Ok(New DashboardCharts With {
+                .Days = days, .DailySales = daily, .TopProducts = top})
+        End Function
+
+        ''' <summary>
         ''' Quantity per product for the figures above: the shop's own when the caller is pinned to
         ''' one, the organisation's cached total otherwise.
         ''' </summary>

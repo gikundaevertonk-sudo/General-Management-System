@@ -17,19 +17,35 @@ Namespace Services
     Public NotInheritable Class ReportService
         Inherits ServiceBase
 
-        Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, tenantContext As ITenantContext, clock As IClock)
+        Private ReadOnly _inventory As InventoryService
+
+        Public Sub New(uow As IUnitOfWork, currentUser As ICurrentUser, tenantContext As ITenantContext, clock As IClock,
+                       inventory As InventoryService)
             MyBase.New(uow, currentUser, tenantContext, clock)
+            _inventory = Guard.NotNull(inventory)
         End Sub
 
-        Public Function SalesSummary(range As DateRange) As Result(Of SalesSummaryReport)
+        ''' <param name="shopId">
+        ''' Narrow the report to one shop. A caller pinned to a shop always gets their own, whatever
+        ''' is asked for - which is what lets a shop attendant run their own branch's figures
+        ''' without being able to see anyone else's.
+        ''' </param>
+        Public Function SalesSummary(range As DateRange, Optional shopId As Integer? = Nothing) As Result(Of SalesSummaryReport)
             If Denied(PermissionCodes.Reports.View) Then Return Forbidden(Of SalesSummaryReport)()
 
-            Dim txns = Uow.Repository(Of Transaction)().Query().
+            Dim q = Uow.Repository(Of Transaction)().Query().
                 Where(Function(t) t.Type = TransactionType.Sale _
                               AndAlso t.Status = TransactionStatus.Confirmed _
                               AndAlso t.TransactionDate >= range.FromUtc _
-                              AndAlso t.TransactionDate < range.ToUtc).ToList()
+                              AndAlso t.TransactionDate < range.ToUtc)
 
+            Dim scope = ResolveShopScope(shopId)
+            If scope.HasValue Then
+                Dim only = scope.Value
+                q = q.Where(Function(t) t.ShopId.HasValue AndAlso t.ShopId.Value = only)
+            End If
+
+            Dim txns = q.ToList()
             Dim txnIds = txns.Select(Function(t) t.Id).ToHashSet()
             Dim lines = Uow.Repository(Of TransactionLine)().Query().
                 Where(Function(l) txnIds.Contains(l.TransactionId)).ToList()
@@ -58,8 +74,31 @@ Namespace Services
             })
         End Function
 
-        Public Function InventoryValuation() As Result(Of IReadOnlyList(Of InventoryValuationRow))
+        ''' <summary>
+        ''' What the stock is worth. With a shop, what that shop is holding; without one, the whole
+        ''' organisation. A caller pinned to a shop always gets their own.
+        ''' </summary>
+        Public Function InventoryValuation(Optional shopId As Integer? = Nothing) As Result(Of IReadOnlyList(Of InventoryValuationRow))
             If Denied(PermissionCodes.Reports.View) Then Return Forbidden(Of IReadOnlyList(Of InventoryValuationRow))()
+
+            Dim scope = ResolveShopScope(shopId)
+            If scope.HasValue Then
+                ' Delegated rather than re-derived: InventoryService owns every balance, and a
+                ' second place computing "how much is at this shop" is a second place to get it wrong.
+                Dim held = _inventory.GetStockAt(scope, New QueryOptions With {.PageSize = QueryOptions.MaxPageSize},
+                                                 includeEmpty:=True)
+                If held.Failed Then Return Result(Of IReadOnlyList(Of InventoryValuationRow)).Fail(held.ErrorMessage)
+                Return Result(Of IReadOnlyList(Of InventoryValuationRow)).Ok(
+                    held.Value.Items.Select(Function(r) New InventoryValuationRow With {
+                        .ProductId = r.ProductId,
+                        .Sku = r.Sku,
+                        .ProductName = r.ProductName,
+                        .QuantityOnHand = r.QuantityOnHand,
+                        .UnitCost = r.UnitCost,
+                        .ValueAtCost = r.ValueAtCost,
+                        .BelowReorderLevel = r.BelowReorderLevel
+                    }).ToList())
+            End If
 
             Dim rows = Uow.Repository(Of Product)().Query().Where(Function(p) p.IsActive).
                 OrderBy(Function(p) p.Name).
@@ -75,12 +114,13 @@ Namespace Services
             Return Result(Of IReadOnlyList(Of InventoryValuationRow)).Ok(rows)
         End Function
 
-        Public Function LowStock() As Result(Of IReadOnlyList(Of Product))
-            If Denied(PermissionCodes.Reports.View) Then Return Forbidden(Of IReadOnlyList(Of Product))()
-            Dim rows = Uow.Repository(Of Product)().Query().
-                Where(Function(p) p.IsActive AndAlso p.QuantityOnHand <= p.ReorderLevel).
-                OrderBy(Function(p) p.QuantityOnHand).ToList()
-            Return Result(Of IReadOnlyList(Of Product)).Ok(rows)
+        ''' <summary>What is at or below its reorder level, at one location or across the organisation.</summary>
+        Public Function LowStock(Optional shopId As Integer? = Nothing) As Result(Of IReadOnlyList(Of InventoryValuationRow))
+            Dim valued = InventoryValuation(shopId)
+            If valued.Failed Then Return valued
+            Return Result(Of IReadOnlyList(Of InventoryValuationRow)).Ok(
+                valued.Value.Where(Function(r) r.BelowReorderLevel).
+                             OrderBy(Function(r) r.QuantityOnHand).ToList())
         End Function
 
         ''' <summary>Minimal RFC 4180 CSV writer for report rows (no external dependency).</summary>

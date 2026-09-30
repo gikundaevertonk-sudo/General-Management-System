@@ -57,6 +57,9 @@ Namespace Views
 
         ''' <summary>Runs <paramref name="work"/>, showing any thrown message as a dialog.</summary>
         Protected Sub Guarded(work As Action)
+            ' The work runs on the UI thread and usually waits on the database, so at least say
+            ' so. Cursor.Current reverts by itself once the message loop resumes.
+            System.Windows.Forms.Cursor.Current = Cursors.WaitCursor
             Try
                 work()
             Catch ex As Exception

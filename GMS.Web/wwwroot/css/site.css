@@ -10,59 +10,135 @@ body { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; }
    variable defined once per theme, which means a component is styled once and
    both themes follow. Add a new colour here rather than inlining a hex value.
    --------------------------------------------------------------------------- */
+/* Palette: blue is the colour businesses most often choose to signal trust and
+   competence, so the brand is a confident blue on a deep navy frame, with a
+   cool neutral canvas and a teal highlight used sparingly. */
 :root,
 [data-bs-theme="light"] {
-    --gms-sidebar-bg: #111827;
-    --gms-sidebar-hover: #1f2937;
-    --gms-sidebar-border: #1f2937;
-    --gms-sidebar-text: #d1d5db;
+    --gms-sidebar-bg: #0f1c3f;
+    --gms-sidebar-bg-2: #13265a;
+    --gms-sidebar-hover: rgba(255,255,255,.07);
+    --gms-sidebar-active: rgba(59,130,246,.22);
+    --gms-sidebar-border: rgba(255,255,255,.08);
+    --gms-sidebar-text: #c7d2e8;
     --gms-sidebar-link: #93c5fd;
-    --gms-sidebar-user: #9ca3af;
+    --gms-sidebar-user: #8fa0c2;
 
-    --gms-card-border: #e5e7eb;
-    --gms-card-shadow: 0 1px 2px rgba(0,0,0,.04);
-    --gms-thead-bg: #f9fafb;
-    --gms-muted: #6b7280;
+    --gms-page-bg: #f4f6fb;
+    --gms-card-bg: #ffffff;
+    --gms-card-border: #e3e8f2;
+    --gms-card-shadow: 0 1px 2px rgba(15,28,63,.04), 0 4px 16px rgba(15,28,63,.04);
+    --gms-thead-bg: #f6f8fc;
+    --gms-muted: #64748b;
     --gms-low-stock: #b45309;
     --gms-accent: #2563eb;
-    --gms-module-hover-shadow: 0 4px 10px rgba(0,0,0,.08);
+    --gms-accent-hover: #1d4ed8;
+    --gms-accent-soft: #e8efff;
+    --gms-highlight: #0d9488;
+    --gms-module-hover-shadow: 0 8px 24px rgba(37,99,235,.12);
+
+    /* Charts: one series each, so one hue. Validated for band and contrast
+       against its own surface in each theme. */
+    --gms-chart-1: #2563eb;
+    --gms-chart-grid: #edf1f7;
+    --gms-chart-axis: #cbd5e1;
+    --gms-chart-track: #eef2f9;
+
+    --bs-primary: #2563eb;
+    --bs-primary-rgb: 37,99,235;
+    --bs-link-color: #2563eb;
+    --bs-link-color-rgb: 37,99,235;
+    --bs-link-hover-color: #1d4ed8;
+    --bs-link-hover-color-rgb: 29,78,216;
+    --bs-primary-text-emphasis: #1e40af;
+    --bs-primary-bg-subtle: #e8efff;
+    --bs-primary-border-subtle: #bfd3fe;
+    --bs-border-radius: .5rem;
+    --bs-border-radius-lg: .75rem;
+    --bs-focus-ring-color: rgba(37,99,235,.25);
 }
 
 [data-bs-theme="dark"] {
-    /* The sidebar is already near-black in light mode. In dark mode the page
-       around it is dark too, so it is lifted slightly instead of dropped,
-       otherwise it disappears into the background entirely. */
-    --gms-sidebar-bg: #0b1220;
-    --gms-sidebar-hover: #1e293b;
-    --gms-sidebar-border: #1e293b;
+    --gms-sidebar-bg: #0a1224;
+    --gms-sidebar-bg-2: #0e1a36;
+    --gms-sidebar-hover: rgba(255,255,255,.06);
+    --gms-sidebar-active: rgba(59,130,246,.25);
+    --gms-sidebar-border: rgba(255,255,255,.07);
     --gms-sidebar-text: #cbd5e1;
-    --gms-sidebar-link: #7dd3fc;
+    --gms-sidebar-link: #93c5fd;
     --gms-sidebar-user: #94a3b8;
 
-    --gms-card-border: #2b3648;
-    --gms-card-shadow: 0 1px 2px rgba(0,0,0,.35);
-    --gms-thead-bg: #1a2233;
+    --gms-page-bg: #0b1120;
+    --gms-card-bg: #131c31;
+    --gms-card-border: #22304d;
+    --gms-card-shadow: 0 1px 2px rgba(0,0,0,.4);
+    --gms-thead-bg: #18233b;
     --gms-muted: #9aa6b8;
     /* Amber on a dark background needs to be lighter to stay legible; the
        light-mode #b45309 fails contrast against a dark card. */
     --gms-low-stock: #fbbf24;
     --gms-accent: #60a5fa;
-    --gms-module-hover-shadow: 0 4px 12px rgba(0,0,0,.5);
+    --gms-accent-hover: #93c5fd;
+    --gms-accent-soft: rgba(59,130,246,.16);
+    --gms-highlight: #2dd4bf;
+    --gms-module-hover-shadow: 0 8px 24px rgba(0,0,0,.5);
+
+    --gms-chart-1: #3b82f6;
+    --gms-chart-grid: #1c2842;
+    --gms-chart-axis: #334463;
+    --gms-chart-track: #1a2540;
+
+    --bs-body-bg: #0b1120;
+    --bs-body-bg-rgb: 11,17,32;
+    --bs-tertiary-bg: #0b1120;
+    --bs-tertiary-bg-rgb: 11,17,32;
+    --bs-secondary-bg: #18233b;
+    --bs-border-color: #22304d;
+    --bs-primary: #3b82f6;
+    --bs-primary-rgb: 59,130,246;
+    --bs-link-color: #60a5fa;
+    --bs-link-color-rgb: 96,165,250;
+    --bs-link-hover-color: #93c5fd;
+    --bs-link-hover-color-rgb: 147,197,253;
+    --bs-primary-text-emphasis: #93c5fd;
+    --bs-primary-bg-subtle: rgba(59,130,246,.16);
+    --bs-primary-border-subtle: #1e3a8a;
+    --bs-focus-ring-color: rgba(96,165,250,.3);
 }
 
-.card { border: 1px solid var(--gms-card-border); box-shadow: var(--gms-card-shadow); }
-.stat-card .stat-value { font-size: 1.6rem; font-weight: 600; }
-.stat-card .stat-label { color: var(--gms-muted); font-size: .85rem; }
+body.bg-body-tertiary { background: var(--gms-page-bg) !important; }
+
+.card { border: 1px solid var(--gms-card-border); box-shadow: var(--gms-card-shadow); background: var(--gms-card-bg); border-radius: .75rem; }
+.card > .card-header { background: transparent; border-bottom-color: var(--gms-card-border); padding: .8rem 1rem; }
+.stat-card { position: relative; overflow: hidden; }
+.stat-card::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--gms-accent); opacity: .85; }
+.stat-card .stat-value { font-size: 1.6rem; font-weight: 600; letter-spacing: -.01em; }
+.stat-card .stat-label { color: var(--gms-muted); font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; }
+
+/* Bootstrap 5.3 bakes the primary colour into the button's own variables. */
+.btn-primary {
+    --bs-btn-bg: var(--bs-primary); --bs-btn-border-color: var(--bs-primary);
+    --bs-btn-hover-bg: var(--gms-accent-hover); --bs-btn-hover-border-color: var(--gms-accent-hover);
+    --bs-btn-active-bg: var(--gms-accent-hover); --bs-btn-active-border-color: var(--gms-accent-hover);
+    --bs-btn-disabled-bg: var(--bs-primary); --bs-btn-disabled-border-color: var(--bs-primary);
+}
+[data-bs-theme="dark"] .btn-primary { --bs-btn-hover-bg: #2563eb; --bs-btn-hover-border-color: #2563eb; --bs-btn-active-bg: #2563eb; }
+.btn-outline-primary {
+    --bs-btn-color: var(--bs-primary); --bs-btn-border-color: var(--bs-primary);
+    --bs-btn-hover-bg: var(--bs-primary); --bs-btn-hover-border-color: var(--bs-primary);
+    --bs-btn-active-bg: var(--bs-primary); --bs-btn-active-border-color: var(--bs-primary);
+}
+.form-control:focus, .form-select:focus { border-color: var(--gms-accent); box-shadow: 0 0 0 .2rem var(--bs-focus-ring-color); }
 
 .table > :not(caption) > * > * { padding: .5rem .6rem; }
 .table thead th { background: var(--gms-thead-bg); font-weight: 600; white-space: nowrap; }
 
-.topbar { background: var(--gms-sidebar-bg); height: 48px; }
+.topbar { background: linear-gradient(90deg, var(--gms-sidebar-bg), var(--gms-sidebar-bg-2)); height: 52px; }
 .topbar .navbar-brand { color: #fff; }
 
 /* Bootstrap forces .offcanvas-md's background to transparent !important at md+
    widths so it can act as a static sidebar there; override it back. */
-.sidebar { width: 220px; background: var(--gms-sidebar-bg) !important; flex-shrink: 0; }
+.sidebar { width: 232px; background: linear-gradient(180deg, var(--gms-sidebar-bg), var(--gms-sidebar-bg-2)) !important; flex-shrink: 0; }
 @media (min-width: 768px) {
     .sidebar { position: sticky; top: 0; height: 100vh; overflow-y: auto; }
 }
@@ -70,11 +146,13 @@ body { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; }
     #sidebar { --bs-offcanvas-width: 260px; }
 }
 
-.sidebar-brand { color: #fff; font-weight: 600; font-size: 1.15rem; padding: 1rem 1rem .5rem; }
-.sidebar-nav { padding: .5rem 0; }
-.sidebar-nav .nav-link { color: var(--gms-sidebar-text); padding: .55rem 1rem; border-radius: 0; }
+.sidebar-brand { color: #fff; font-weight: 700; font-size: 1.2rem; letter-spacing: .02em; padding: 1.1rem 1.1rem .6rem; }
+.sidebar-brand::before { content: ""; display: inline-block; width: .6rem; height: .6rem; border-radius: 3px; margin-right: .5rem;
+    background: linear-gradient(135deg, #60a5fa, var(--gms-highlight)); vertical-align: .1rem; }
+.sidebar-nav { padding: .5rem .6rem; gap: 2px; }
+.sidebar-nav .nav-link { color: var(--gms-sidebar-text); padding: .55rem .75rem; border-radius: .5rem; transition: background .15s ease, color .15s ease; }
 .sidebar-nav .nav-link:hover { background: var(--gms-sidebar-hover); color: #fff; }
-.sidebar-nav .nav-link.active { background: var(--gms-sidebar-hover); color: #fff; font-weight: 600; }
+.sidebar-nav .nav-link.active { background: var(--gms-sidebar-active); color: #fff; font-weight: 600; box-shadow: inset 3px 0 0 #60a5fa; }
 
 .sidebar-footer { border-top: 1px solid var(--gms-sidebar-border); padding: .85rem 1rem; }
 .sidebar-footer .sidebar-link, .sidebar-footer .btn-link { color: var(--gms-sidebar-link); text-decoration: none; display: block; padding: .3rem 0; font-size: .85rem; }
@@ -84,13 +162,14 @@ body { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; }
 .main-content { min-width: 0; }
 
 .page-head { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
-.page-head h1 { font-size: 1.4rem; margin: 0; }
+.page-head h1 { font-size: 1.5rem; font-weight: 650; letter-spacing: -.01em; margin: 0; }
 
 .low-stock { color: var(--gms-low-stock); font-weight: 600; }
 .muted { color: var(--gms-muted); }
 
-.module-btn { color: inherit; transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease; }
-.module-btn:hover { box-shadow: var(--gms-module-hover-shadow); border-color: var(--gms-accent); transform: translateY(-1px); }
+.module-btn { color: inherit; border-radius: .75rem; transition: box-shadow .15s ease, transform .15s ease, border-color .15s ease; }
+.module-btn:hover { box-shadow: var(--gms-module-hover-shadow); border-color: var(--gms-accent); transform: translateY(-2px); }
+.module-btn:hover .module-title { color: var(--gms-accent); }
 .module-btn .module-title { font-weight: 600; }
 .module-btn .module-desc { color: var(--gms-muted); font-size: .8rem; margin-top: .15rem; }
 
@@ -115,3 +194,44 @@ body { font-family: "Segoe UI", system-ui, -apple-system, sans-serif; }
 /* Signed-out pages have no sidebar, so the toggle sits in the top bar. */
 .topbar .theme-toggle { color: #d1d5db; font-size: .85rem; }
 .topbar .theme-toggle:hover { color: #fff; }
+
+/* ---------------------------------------------------------------------------
+   Dashboard charts
+   --------------------------------------------------------------------------- */
+.chart-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: .75rem; }
+.chart-title { font-size: 1rem; font-weight: 600; margin: 0; }
+.chart-sub { color: var(--gms-muted); font-size: .8rem; }
+.chart-kpi { text-align: right; }
+.chart-kpi-value { font-size: 1.35rem; font-weight: 600; letter-spacing: -.01em; }
+.chart-empty { color: var(--gms-muted); padding: 2.5rem 0; text-align: center; }
+
+.chart-wrap { position: relative; }
+.chart-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart-grid { stroke: var(--gms-chart-grid); stroke-width: 1; }
+.chart-axis { stroke: var(--gms-chart-axis); stroke-width: 1; }
+.chart-tick { fill: var(--gms-muted); font-size: 11px; }
+.chart-line { fill: none; stroke: var(--gms-chart-1); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart-hit { fill: transparent; cursor: crosshair; }
+.chart-crosshair { stroke: var(--gms-chart-axis); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0; }
+.chart-dot { fill: var(--gms-chart-1); stroke: var(--gms-card-bg); stroke-width: 2; opacity: 0; }
+.chart-svg.is-hovering .chart-crosshair, .chart-svg.is-hovering .chart-dot { opacity: 1; }
+
+.chart-tooltip {
+    position: absolute; pointer-events: none; z-index: 2; min-width: 120px;
+    background: var(--gms-card-bg); border: 1px solid var(--gms-card-border); border-radius: .5rem;
+    box-shadow: 0 6px 20px rgba(15,28,63,.14); padding: .45rem .65rem; font-size: .8rem;
+}
+.chart-tooltip-label { color: var(--gms-muted); }
+.chart-tooltip-value { font-weight: 600; font-size: .95rem; }
+.chart-tooltip-note { color: var(--gms-muted); }
+
+.chart-table { margin-top: .5rem; font-size: .85rem; }
+.chart-table > summary { color: var(--gms-muted); cursor: pointer; }
+
+.bar-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .8rem; }
+.bar-meta { display: flex; justify-content: space-between; gap: .75rem; font-size: .875rem; margin-bottom: .3rem; }
+.bar-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.bar-value { font-weight: 600; font-variant-numeric: tabular-nums; }
+.bar-track { height: 8px; border-radius: 4px; background: var(--gms-chart-track); overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 4px; background: var(--gms-chart-1); transition: width .4s ease; }
+.bar-note { color: var(--gms-muted); font-size: .75rem; margin-top: .2rem; }

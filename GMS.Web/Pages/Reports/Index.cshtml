@@ -5,7 +5,7 @@
 <div class="page-head">
     <h1>Reports</h1>
     <a class="btn btn-outline-secondary btn-sm"
-       asp-page-handler="Csv" asp-route-report="@Model.Report" asp-route-from="@Model.From?.ToString("yyyy-MM-dd")" asp-route-to="@Model.To?.ToString("yyyy-MM-dd")">Download CSV</a>
+       asp-page-handler="Csv" asp-route-report="@Model.Report" asp-route-shop="@Model.Shop" asp-route-from="@Model.From?.ToString("yyyy-MM-dd")" asp-route-to="@Model.To?.ToString("yyyy-MM-dd")">Download CSV</a>
 </div>
 
 <form method="get" class="row g-2 mb-3 align-items-end">
@@ -17,6 +17,16 @@
             <option value="lowstock" selected="@(Model.Report == "lowstock")">Low stock</option>
         </select>
     </div>
+    @if (Model.CanChooseShop)
+    {
+        <div class="col-auto">
+            <label class="form-label mb-0 small">Shop</label>
+            <select name="shop" class="form-select form-select-sm" onchange="this.form.submit()">
+                @foreach (var o in Model.ShopOptions)
+                { <option value="@o.Value" selected="@(Model.Shop == o.Value)">@o.Text</option> }
+            </select>
+        </div>
+    }
     @if (Model.Report == "sales")
     {
         <div class="col-auto"><label class="form-label mb-0 small">From</label><input type="date" name="from" value="@Model.From?.ToString("yyyy-MM-dd")" class="form-control form-control-sm" /></div>
@@ -63,11 +73,11 @@ else if (Model.LowStock is { } low)
 {
     <p class="muted">@low.Count product(s) at or below reorder level</p>
     <div class="card"><div class="table-responsive"><table class="table table-sm mb-0">
-        <thead><tr><th>SKU</th><th>Product</th><th class="text-end">On hand</th><th class="text-end">Reorder level</th></tr></thead>
+        <thead><tr><th>SKU</th><th>Product</th><th class="text-end">On hand</th><th class="text-end">Value at cost</th></tr></thead>
         <tbody>
         @foreach (var p in low)
         {
-            <tr><td>@p.Sku</td><td>@p.Name</td><td class="text-end low-stock">@p.QuantityOnHand.ToString("N3")</td><td class="text-end">@p.ReorderLevel.ToString("N3")</td></tr>
+            <tr><td>@p.Sku</td><td>@p.ProductName</td><td class="text-end low-stock">@p.QuantityOnHand.ToString("N3")</td><td class="text-end">@p.ValueAtCost.ToString("N2")</td></tr>
         }
         @if (low.Count == 0) { <tr><td colspan="4" class="muted">Nothing low right now.</td></tr> }
         </tbody>

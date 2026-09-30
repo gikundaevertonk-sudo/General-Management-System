@@ -74,65 +74,172 @@ Namespace Services
             Return n
         End Function
 
-        ''' <summary>Raise a low-stock alert for specific products if not already outstanding.</summary>
-        Public Sub RaiseLowStockFor(productIds As IEnumerable(Of Integer))
+        ''' <summary>
+        ''' Raise a low-stock alert for specific products at one location, if not already outstanding.
+        ''' </summary>
+        ''' <param name="shopId">Where the stock ran low; Nothing is the central pool.</param>
+        Public Sub RaiseLowStockFor(productIds As IEnumerable(Of Integer), Optional shopId As Integer? = Nothing)
             Dim ids = productIds.Distinct().ToList()
             If ids.Count = 0 Then Return
 
+            Dim held = QuantitiesAt(shopId)
             Dim products = Uow.Repository(Of Product)().Query().
-                Where(Function(p) ids.Contains(p.Id) AndAlso p.IsActive AndAlso p.QuantityOnHand <= p.ReorderLevel).ToList()
+                Where(Function(p) ids.Contains(p.Id) AndAlso p.IsActive).ToList().
+                Where(Function(p) held.GetValueOrDefault(p.Id, 0D) <= p.ReorderLevel).ToList()
+            If products.Count = 0 Then Return
 
+            Dim watchers = StockWatchers()
             For Each p In products
-                RaiseLowStock(p)
+                RaiseLowStock(p, shopId, held.GetValueOrDefault(p.Id, 0D), watchers)
             Next
             Uow.SaveChanges()
         End Sub
 
-        ''' <summary>Scan the whole catalogue; used on a schedule or on demand.</summary>
+        ''' <summary>
+        ''' Scan every location; used on a schedule or on demand. Each shop is checked against its
+        ''' own shelves, so a branch that is empty raises an alert even while the company is
+        ''' holding plenty somewhere else.
+        ''' </summary>
         Public Function RunLowStockScan() As Result(Of Integer)
             If Denied(PermissionCodes.Inventory.View) Then Return Forbidden(Of Integer)()
 
-            Dim low = Uow.Repository(Of Product)().Query().
-                Where(Function(p) p.IsActive AndAlso p.QuantityOnHand <= p.ReorderLevel).ToList()
+            Dim products = Uow.Repository(Of Product)().Query().Where(Function(p) p.IsActive).ToList()
+            Dim watchers = StockWatchers()
+
+            ' Central first, then every open shop. A closed shop is not restocked, so alerting on it
+            ' would only produce noise nobody can act on.
+            Dim locations As New List(Of Integer?) From {Nothing}
+            locations.AddRange(Uow.Repository(Of Shop)().Query().Where(Function(s) s.IsActive).
+                               Select(Function(s) s.Id).ToList().Select(Function(id) CType(id, Integer?)))
 
             Dim raised = 0
-            For Each p In low
-                If RaiseLowStock(p) Then raised += 1
+            Dim stillLow As New HashSet(Of String)()
+            For Each location In locations
+                Dim held = QuantitiesAt(location)
+                For Each p In products
+                    Dim quantity = held.GetValueOrDefault(p.Id, 0D)
+                    If quantity > p.ReorderLevel Then Continue For
+                    stillLow.Add(DedupeKeyFor(p.Id, location))
+                    If RaiseLowStock(p, location, quantity, watchers) Then raised += 1
+                Next
             Next
 
-            ' Clear alerts for products that have recovered.
+            ' Clear alerts for locations that have recovered. Matched on the key's location part so
+            ' restocking one branch does not silence another branch's alert for the same product.
             Dim openLowStock = Uow.Repository(Of Notification)().Query().
                 Where(Function(n) n.Type = NotificationType.LowStock AndAlso Not n.IsRead).ToList()
             For Each n In openLowStock
-                Dim pid As Integer
-                If Integer.TryParse(n.RelatedEntityId, pid) AndAlso Not low.Any(Function(p) p.Id = pid) Then
-                    n.IsRead = True
-                    n.ReadAtUtc = Clock.UtcNow
-                    Uow.Repository(Of Notification)().Update(n)
-                End If
+                If stillLow.Contains(LocationKeyOf(n.DedupeKey)) Then Continue For
+                n.IsRead = True
+                n.ReadAtUtc = Clock.UtcNow
+                Uow.Repository(Of Notification)().Update(n)
             Next
 
             Uow.SaveChanges()
             Return Result(Of Integer).Ok(raised)
         End Function
 
-        Private Function RaiseLowStock(p As Product) As Boolean
-            Dim key = $"lowstock:{p.Id}"
-            Dim exists = Uow.Repository(Of Notification)().Query().
-                Any(Function(n) n.DedupeKey = key AndAlso Not n.IsRead)
-            If exists Then Return False
+        ''' <summary>How much of each product one location is holding.</summary>
+        Private Function QuantitiesAt(shopId As Integer?) As Dictionary(Of Integer, Decimal)
+            Dim allocated = Uow.Repository(Of ShopStock)().Query().
+                Select(Function(s) New With {s.ShopId, s.ProductId, s.QuantityOnHand}).ToList()
 
-            Uow.Repository(Of Notification)().Add(New Notification With {
-                .Type = NotificationType.LowStock,
-                .Severity = If(p.QuantityOnHand <= 0D, NotificationSeverity.Critical, NotificationSeverity.Warning),
-                .Title = $"Low stock: {p.Name}",
-                .Message = $"'{p.Name}' ({p.Sku}) is at {p.QuantityOnHand:0.###} {p.UnitOfMeasure}, reorder level {p.ReorderLevel:0.###}.",
-                .RelatedEntityName = NameOf(Product),
-                .RelatedEntityId = p.Id.ToString(),
-                .DedupeKey = key,
-                .CreatedAtUtc = Clock.UtcNow
-            })
-            Return True
+            If shopId.HasValue Then
+                Return allocated.Where(Function(s) s.ShopId = shopId.Value).
+                    ToDictionary(Function(s) s.ProductId, Function(s) s.QuantityOnHand)
+            End If
+
+            Dim held = allocated.GroupBy(Function(s) s.ProductId).
+                ToDictionary(Function(g) g.Key, Function(g) g.Sum(Function(s) s.QuantityOnHand))
+            Return Uow.Repository(Of Product)().Query().
+                Select(Function(p) New With {p.Id, p.QuantityOnHand}).ToList().
+                ToDictionary(Function(p) p.Id, Function(p) p.QuantityOnHand - held.GetValueOrDefault(p.Id, 0D))
+        End Function
+
+        ''' <summary>
+        ''' Who a low-stock alert should reach: the people who can actually do something about it.
+        ''' </summary>
+        ''' <remarks>
+        ''' Defined as everyone holding <c>shops.allocate</c> - managers and administrators - rather
+        ''' than by role name, so a custom role that can move stock is included automatically.
+        ''' Counter staff are deliberately left out: they cannot restock their own shop, so the
+        ''' alert would be noise they are powerless to clear.
+        '''
+        ''' An empty list means nobody holds that permission, and the caller broadcasts instead of
+        ''' dropping the alert on the floor.
+        ''' </remarks>
+        Private Function StockWatchers() As List(Of Integer)
+            Dim roleIds = Uow.Repository(Of RolePermission)().Query().
+                Join(Uow.Repository(Of Permission)().Query(),
+                     Function(rp) rp.PermissionId, Function(p) p.Id, Function(rp, p) New With {rp.RoleId, p.Code}).
+                Where(Function(x) x.Code = PermissionCodes.Shops.Allocate).
+                Select(Function(x) x.RoleId).ToList()
+            If roleIds.Count = 0 Then Return New List(Of Integer)()
+
+            Return Uow.Repository(Of User)().Query().
+                Where(Function(u) u.IsActive AndAlso roleIds.Contains(u.RoleId)).
+                Select(Function(u) u.Id).ToList()
+        End Function
+
+        Private Shared Function DedupeKeyFor(productId As Integer, shopId As Integer?) As String
+            Return $"lowstock:{If(shopId.HasValue, shopId.Value.ToString(), "central")}:{productId}"
+        End Function
+
+        ''' <summary>The location-and-product part of a dedupe key, dropping any per-recipient suffix.</summary>
+        Private Shared Function LocationKeyOf(dedupeKey As String) As String
+            Dim parts = If(dedupeKey, String.Empty).Split(":"c)
+            If parts.Length < 3 Then Return If(dedupeKey, String.Empty)
+            Return String.Join(":", parts(0), parts(1), parts(2))
+        End Function
+
+        ''' <summary>
+        ''' Raises one alert per recipient, so each manager can clear their own copy without
+        ''' hiding it from the others.
+        ''' </summary>
+        Private Function RaiseLowStock(p As Product, shopId As Integer?, quantity As Decimal,
+                                       watchers As List(Of Integer)) As Boolean
+            Dim locationName = If(shopId.HasValue,
+                                  If(Uow.Repository(Of Shop)().GetById(shopId.Value)?.Name, $"Shop #{shopId.Value}"),
+                                  "Central")
+            Dim baseKey = DedupeKeyFor(p.Id, shopId)
+            Dim severity = If(quantity <= 0D, NotificationSeverity.Critical, NotificationSeverity.Warning)
+            Dim title = $"Low stock at {locationName}: {p.Name}"
+            Dim message = $"'{p.Name}' ({p.Sku}) is at {quantity:0.###} {p.UnitOfMeasure} at {locationName}, " &
+                          $"reorder level {p.ReorderLevel:0.###}."
+
+            ' No recipient holds the permission, so there is nobody to address it to. Broadcast
+            ' rather than lose it entirely.
+            Dim targets As New List(Of Integer?)()
+            If watchers.Count = 0 Then
+                targets.Add(Nothing)
+            Else
+                targets.AddRange(watchers.Select(Function(id) CType(id, Integer?)))
+            End If
+
+            Dim any = False
+            Dim repo = Uow.Repository(Of Notification)()
+            Dim outstanding = repo.Query().
+                Where(Function(n) Not n.IsRead AndAlso n.DedupeKey.StartsWith(baseKey)).
+                Select(Function(n) n.DedupeKey).ToList().ToHashSet(StringComparer.Ordinal)
+
+            For Each target In targets
+                Dim key = $"{baseKey}:{If(target.HasValue, target.Value.ToString(), "all")}"
+                If outstanding.Contains(key) Then Continue For
+
+                repo.Add(New Notification With {
+                    .Type = NotificationType.LowStock,
+                    .Severity = severity,
+                    .Title = title,
+                    .Message = message,
+                    .TargetUserId = target,
+                    .RelatedEntityName = NameOf(Product),
+                    .RelatedEntityId = p.Id.ToString(),
+                    .DedupeKey = key,
+                    .CreatedAtUtc = Clock.UtcNow
+                })
+                any = True
+            Next
+            Return any
         End Function
     End Class
 

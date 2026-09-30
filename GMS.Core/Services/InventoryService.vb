@@ -86,11 +86,20 @@ Namespace Services
         ''' it only changed hands - so the two ledger rows this writes cancel out in
         ''' <c>Product.QuantityOnHand</c> while moving the two <c>ShopStock</c> balances.
         ''' </remarks>
+        ''' <param name="unitPriceAtDestination">
+        ''' What the product should sell for at the destination shop from now on. Nothing leaves
+        ''' the destination's price as it was - its own if it already had one, otherwise the
+        ''' catalogue's. Ignored when the destination is the central pool, which does not sell.
+        ''' </param>
         Public Function Allocate(productId As Integer, fromShopId As Integer?, toShopId As Integer?,
-                                 quantity As Decimal, note As String) As Result
+                                 quantity As Decimal, note As String,
+                                 Optional unitPriceAtDestination As Decimal? = Nothing) As Result
 
             If Denied(PermissionCodes.Shops.Allocate) Then Return Forbidden()
             If quantity <= 0D Then Return Result.Fail("Quantity must be greater than zero.")
+            If unitPriceAtDestination.HasValue AndAlso unitPriceAtDestination.Value < 0D Then
+                Return Result.Fail("Price cannot be negative.")
+            End If
 
             ' Not ResolveShopScope: an allocation names two locations, and silently rewriting
             ' either of them to the caller's own shop would move stock somewhere nobody asked for.
@@ -130,12 +139,77 @@ Namespace Services
                           StockMovementReason.Allocation, Nothing,
                           $"From {LocationName(fromShopId)}{reference}", affectsOrgTotal:=False)
 
-            _audit.Record(NameOf(ShopStock), product.Id.ToString(), AuditAction.Update,
-                          New Dictionary(Of String, FieldChange) From {
-                            {"Location", New FieldChange(LocationName(fromShopId), LocationName(toShopId))},
-                            {"Quantity", New FieldChange(0D, quantity)}})
+            Dim changes As New Dictionary(Of String, FieldChange) From {
+                {"Location", New FieldChange(LocationName(fromShopId), LocationName(toShopId))},
+                {"Quantity", New FieldChange(0D, quantity)}}
+
+            ' Priced after the movement, so the row is guaranteed to exist: the In above created it
+            ' if this is the first time the product has reached that shop.
+            If toShopId.HasValue AndAlso unitPriceAtDestination.HasValue Then
+                Dim priced = balances.SetPrice(toShopId.Value, product.Id, unitPriceAtDestination.Value)
+                changes("UnitPrice") = New FieldChange(If(priced.WasInheriting, CObj("(catalogue)"), CObj(priced.OldPrice)),
+                                                       unitPriceAtDestination.Value)
+            End If
+
+            _audit.Record(NameOf(ShopStock), product.Id.ToString(), AuditAction.Update, changes)
             Uow.SaveChanges()
             Return Result.Ok()
+        End Function
+
+        ''' <summary>
+        ''' Sets - or clears - what a product sells for at one shop, without moving any stock.
+        ''' </summary>
+        ''' <param name="unitPrice">
+        ''' Nothing puts the shop back on the catalogue price, so a branch can be returned to the
+        ''' standard list rather than being stuck with whatever it was last given.
+        ''' </param>
+        ''' <remarks>
+        ''' Gated on Allocate rather than on a price permission of its own: the same people who
+        ''' decide what a branch stocks decide what it charges, and the price is most often set
+        ''' in the same breath as the allocation.
+        ''' </remarks>
+        Public Function SetShopPrice(shopId As Integer, productId As Integer, unitPrice As Decimal?) As Result
+            If Denied(PermissionCodes.Shops.Allocate) Then Return Forbidden()
+            If OutsideShopScope(shopId) Then Return ForbiddenShop()
+            If unitPrice.HasValue AndAlso unitPrice.Value < 0D Then Return Result.Fail("Price cannot be negative.")
+
+            Dim shopError = ValidateShop(shopId)
+            If shopError IsNot Nothing Then Return Result.Fail(shopError)
+            Dim product = Uow.Repository(Of Product)().GetById(productId)
+            If product Is Nothing Then Return NotFound("Product")
+
+            Dim balances = NewBalanceSet()
+            Dim priced = balances.SetPrice(shopId, productId, unitPrice)
+            _audit.Record(NameOf(ShopStock), productId.ToString(), AuditAction.Update,
+                          New Dictionary(Of String, FieldChange) From {
+                            {"UnitPrice", New FieldChange(If(priced.WasInheriting, CObj("(catalogue)"), CObj(priced.OldPrice)),
+                                                          If(unitPrice.HasValue, CObj(unitPrice.Value), CObj("(catalogue)")))}})
+            Uow.SaveChanges()
+            Return Result.Ok()
+        End Function
+
+        ''' <summary>
+        ''' What a product sells for at one location: the shop's own price when it has one, the
+        ''' catalogue price otherwise. The central pool always uses the catalogue price.
+        ''' </summary>
+        Friend Function SalePriceAt(shopId As Integer?, product As Product) As Decimal
+            If product Is Nothing Then Return 0D
+            If Not shopId.HasValue Then Return product.UnitPrice
+            Dim only = shopId.Value
+            Dim own = Uow.Repository(Of ShopStock)().Query().
+                Where(Function(s) s.ShopId = only AndAlso s.ProductId = product.Id).
+                Select(Function(s) s.UnitPrice).FirstOrDefault()
+            Return If(own, product.UnitPrice)
+        End Function
+
+        ''' <summary>Own prices at one shop, per product. Empty for the central pool.</summary>
+        Friend Function PricesAt(shopId As Integer?) As Dictionary(Of Integer, Decimal)
+            If Not shopId.HasValue Then Return New Dictionary(Of Integer, Decimal)()
+            Dim only = shopId.Value
+            Return Uow.Repository(Of ShopStock)().Query().
+                Where(Function(s) s.ShopId = only AndAlso s.UnitPrice.HasValue).
+                Select(Function(s) New With {s.ProductId, s.UnitPrice}).ToList().
+                ToDictionary(Function(s) s.ProductId, Function(s) s.UnitPrice.Value)
         End Function
 
         ''' <summary>
@@ -309,7 +383,6 @@ Namespace Services
             Dim locationError = ValidateShop(location)
             If locationError IsNot Nothing Then Return Result(Of PagedResult(Of ShopStockRow)).Fail(locationError)
 
-            Dim held = StockAt(location)
             Dim name = LocationName(location)
 
             Dim q = Uow.Repository(Of Product)().Query().Where(Function(p) p.IsActive)
@@ -317,9 +390,24 @@ Namespace Services
                 Dim term = options.Search.Trim().ToLower()
                 q = q.Where(Function(p) p.Name.ToLower().Contains(term) OrElse p.Sku.ToLower().Contains(term))
             End If
+            Dim products = q.OrderBy(Function(p) p.Name).ToList()
 
-            Dim all = q.OrderBy(Function(p) p.Name).ToList().
-                Select(Function(p) BuildStockRow(p, location, name, held.GetValueOrDefault(p.Id, 0D))).
+            ' Two round trips whichever location this is: the products above, and one read of
+            ' shop stock. Central works from the products already in hand rather than reading
+            ' the catalogue a second time, and a shop's prices come back with its quantities.
+            Dim held As Dictionary(Of Integer, Decimal)
+            Dim prices As Dictionary(Of Integer, Decimal)
+            If location.HasValue Then
+                Dim holdings = HoldingsAt(location.Value)
+                held = holdings.Quantities
+                prices = holdings.Prices
+            Else
+                held = CentralStock(products.ToDictionary(Function(p) p.Id, Function(p) p.QuantityOnHand))
+                prices = New Dictionary(Of Integer, Decimal)()
+            End If
+
+            Dim all = products.
+                Select(Function(p) BuildStockRow(p, location, name, held.GetValueOrDefault(p.Id, 0D), prices)).
                 Where(Function(r) includeEmpty OrElse r.QuantityOnHand <> 0D).
                 ToList()
 
@@ -343,14 +431,19 @@ Namespace Services
             Dim locationError = ValidateShop(location)
             If locationError IsNot Nothing Then Return Result(Of ShopSummaryRow).Fail(locationError)
 
-            Dim held = StockAt(location)
+            ' The catalogue is read once and serves both the figures below and, for central, the
+            ' organization totals the remainder is worked out from; it used to be read twice.
+            Dim products = Uow.Repository(Of Product)().Query().
+                Select(Function(p) New With {p.Id, p.QuantityOnHand, p.CostPrice, p.ReorderLevel, p.IsActive}).ToList()
+            Dim held = If(location.HasValue,
+                          HoldingsAt(location.Value).Quantities,
+                          CentralStock(products.ToDictionary(Function(p) p.Id, Function(p) p.QuantityOnHand)))
             Dim row As New ShopSummaryRow With {
                 .ShopId = If(location, 0),
                 .Name = LocationName(location),
                 .IsActive = True}
 
-            For Each product In Uow.Repository(Of Product)().Query().
-                Select(Function(p) New With {p.Id, p.CostPrice, p.ReorderLevel, p.IsActive}).ToList()
+            For Each product In products
                 If Not product.IsActive Then Continue For
                 Dim quantity = held.GetValueOrDefault(product.Id, 0D)
                 If quantity = 0D Then Continue For
@@ -385,21 +478,27 @@ Namespace Services
             Dim product = Uow.Repository(Of Product)().GetById(productId)
             If product Is Nothing Then Return NotFound(Of IReadOnlyList(Of ShopStockRow))("Product")
 
-            Dim byShop = Uow.Repository(Of ShopStock)().Query().
+            Dim atShop = Uow.Repository(Of ShopStock)().Query().
                 Where(Function(s) s.ProductId = productId).
-                ToList().
-                ToDictionary(Function(s) s.ShopId, Function(s) s.QuantityOnHand)
+                Select(Function(s) New With {s.ShopId, s.QuantityOnHand, s.UnitPrice}).
+                ToList()
+            Dim byShop = atShop.ToDictionary(Function(s) s.ShopId, Function(s) s.QuantityOnHand)
+            Dim priceByShop = atShop.Where(Function(s) s.UnitPrice.HasValue).
+                ToDictionary(Function(s) s.ShopId, Function(s) s.UnitPrice.Value)
 
             Dim rows As New List(Of ShopStockRow)()
             Dim pinned = PinnedShopId
             If Not pinned.HasValue Then
                 rows.Add(BuildStockRow(product, Nothing, CentralLocationName,
-                                       product.QuantityOnHand - byShop.Values.Sum()))
+                                       product.QuantityOnHand - byShop.Values.Sum(),
+                                       New Dictionary(Of Integer, Decimal)()))
             End If
 
             For Each shop In Uow.Repository(Of Shop)().Query().OrderBy(Function(s) s.Name).ToList()
                 If pinned.HasValue AndAlso shop.Id <> pinned.Value Then Continue For
-                rows.Add(BuildStockRow(product, shop.Id, shop.Name, byShop.GetValueOrDefault(shop.Id, 0D)))
+                Dim shopPrice As New Dictionary(Of Integer, Decimal)()
+                If priceByShop.ContainsKey(shop.Id) Then shopPrice(productId) = priceByShop(shop.Id)
+                rows.Add(BuildStockRow(product, shop.Id, shop.Name, byShop.GetValueOrDefault(shop.Id, 0D), shopPrice))
             Next
 
             Return Result(Of IReadOnlyList(Of ShopStockRow)).Ok(rows)
@@ -451,28 +550,66 @@ Namespace Services
 
         ''' <summary>Quantity held at one location, per product.</summary>
         Private Function StockAt(shopId As Integer?) As Dictionary(Of Integer, Decimal)
-            Dim byProduct = Uow.Repository(Of ShopStock)().Query().
-                Select(Function(s) New With {s.ShopId, s.ProductId, s.QuantityOnHand}).
-                ToList()
+            If shopId.HasValue Then Return HoldingsAt(shopId.Value).Quantities
 
-            If shopId.HasValue Then
-                Return byProduct.Where(Function(s) s.ShopId = shopId.Value).
-                    GroupBy(Function(s) s.ProductId).
-                    ToDictionary(Function(g) g.Key, Function(g) g.Sum(Function(s) s.QuantityOnHand))
-            End If
-
-            ' Central is the remainder, so it is the organization total less everything allocated.
-            Dim allocated = byProduct.GroupBy(Function(s) s.ProductId).
-                ToDictionary(Function(g) g.Key, Function(g) g.Sum(Function(s) s.QuantityOnHand))
-            Return Uow.Repository(Of Product)().Query().
+            Return CentralStock(Uow.Repository(Of Product)().Query().
                 Select(Function(p) New With {p.Id, p.QuantityOnHand}).
                 ToList().
-                ToDictionary(Function(p) p.Id,
-                             Function(p) p.QuantityOnHand - allocated.GetValueOrDefault(p.Id, 0D))
+                ToDictionary(Function(p) p.Id, Function(p) p.QuantityOnHand))
         End Function
 
-        Private Function BuildStockRow(product As Product, shopId As Integer?, locationName As String,
-                                       quantity As Decimal) As ShopStockRow
+        ''' <summary>
+        ''' One shop's quantities and own prices, read together in a single query.
+        ''' </summary>
+        ''' <remarks>
+        ''' Filtered in the database. This used to download every shop's rows and pick one shop
+        ''' out in memory, and then read the same shop again for its prices - two round trips
+        ''' to a remote database, the larger of them growing with every branch, on each click.
+        ''' </remarks>
+        Private Function HoldingsAt(shopId As Integer) As ShopHoldings
+            Dim rows = Uow.Repository(Of ShopStock)().Query().
+                Where(Function(s) s.ShopId = shopId).
+                Select(Function(s) New With {s.ProductId, s.QuantityOnHand, s.UnitPrice}).
+                ToList()
+            Return New ShopHoldings With {
+                .Quantities = rows.GroupBy(Function(s) s.ProductId).
+                    ToDictionary(Function(g) g.Key, Function(g) g.Sum(Function(s) s.QuantityOnHand)),
+                .Prices = rows.Where(Function(s) s.UnitPrice.HasValue).
+                    GroupBy(Function(s) s.ProductId).
+                    ToDictionary(Function(g) g.Key, Function(g) g.First().UnitPrice.Value)}
+        End Function
+
+        ''' <summary>
+        ''' The central pool per product, from organization totals the caller has already read.
+        ''' </summary>
+        ''' <remarks>
+        ''' Central is the remainder, so it is the organization total less everything allocated.
+        ''' Taking the totals as an argument lets a caller that already holds the products pass
+        ''' them in rather than have them read a second time.
+        ''' </remarks>
+        Private Function CentralStock(orgTotals As Dictionary(Of Integer, Decimal)) As Dictionary(Of Integer, Decimal)
+            Dim allocated = Uow.Repository(Of ShopStock)().Query().
+                Select(Function(s) New With {s.ProductId, s.QuantityOnHand}).
+                ToList().
+                GroupBy(Function(s) s.ProductId).
+                ToDictionary(Function(g) g.Key, Function(g) g.Sum(Function(s) s.QuantityOnHand))
+            Return orgTotals.ToDictionary(Function(p) p.Key,
+                                          Function(p) p.Value - allocated.GetValueOrDefault(p.Key, 0D))
+        End Function
+
+        Private NotInheritable Class ShopHoldings
+            Public Property Quantities As Dictionary(Of Integer, Decimal)
+            Public Property Prices As Dictionary(Of Integer, Decimal)
+        End Class
+
+        ''' <param name="ownPrices">
+        ''' Prices this location has set for itself, per product. A product missing from it sells
+        ''' at the catalogue price.
+        ''' </param>
+        Private Shared Function BuildStockRow(product As Product, shopId As Integer?, locationName As String,
+                                              quantity As Decimal,
+                                              ownPrices As Dictionary(Of Integer, Decimal)) As ShopStockRow
+            Dim own = ownPrices.ContainsKey(product.Id)
             Return New ShopStockRow With {
                 .ShopId = shopId,
                 .Location = locationName,
@@ -484,7 +621,9 @@ Namespace Services
                 .ReorderLevel = product.ReorderLevel,
                 .UnitCost = product.CostPrice,
                 .ValueAtCost = Math.Round(quantity * product.CostPrice, 2),
-                .BelowReorderLevel = quantity <= product.ReorderLevel}
+                .BelowReorderLevel = quantity <= product.ReorderLevel,
+                .UnitPrice = If(own, ownPrices(product.Id), product.UnitPrice),
+                .HasOwnPrice = own}
         End Function
 
         ''' <summary>
@@ -613,6 +752,12 @@ Namespace Services
             Private ReadOnly _shopStocks As IRepository(Of ShopStock)
             Private ReadOnly _touched As New Dictionary(Of (ShopId As Integer, ProductId As Integer), ShopStock)()
 
+            ''' <summary>
+            ''' Rows this operation created. They are already pending insert, so calling Update on
+            ''' one would ask EF to mark an unsaved row Modified - which throws.
+            ''' </summary>
+            Private ReadOnly _added As New HashSet(Of ShopStock)()
+
             Public Sub New(shopStocks As IRepository(Of ShopStock))
                 _shopStocks = shopStocks
             End Sub
@@ -623,19 +768,41 @@ Namespace Services
             End Function
 
             Public Sub Apply(shopId As Integer, productId As Integer, delta As Decimal)
-                Dim row = Find(shopId, productId)
-                If row Is Nothing Then
-                    ' First time this product has reached this shop. OrganizationId is left for the
-                    ' store to stamp, exactly as every other row created by a service is.
-                    row = New ShopStock With {.ShopId = shopId, .ProductId = productId}
-                    row.QuantityOnHand = delta
-                    _touched((shopId, productId)) = row
-                    _shopStocks.Add(row)
-                    Return
-                End If
+                Dim row = GetOrCreate(shopId, productId)
                 row.QuantityOnHand += delta
-                _shopStocks.Update(row)
+                If Not _added.Contains(row) Then _shopStocks.Update(row)
             End Sub
+
+            ''' <summary>
+            ''' Sets this shop's own price, or clears it back to the catalogue's. Reports what was
+            ''' there before so the caller can record the change.
+            ''' </summary>
+            Public Function SetPrice(shopId As Integer, productId As Integer,
+                                     unitPrice As Decimal?) As (WasInheriting As Boolean, OldPrice As Decimal)
+                Dim row = GetOrCreate(shopId, productId)
+                Dim before = row.UnitPrice
+                row.UnitPrice = unitPrice
+                If Not _added.Contains(row) Then _shopStocks.Update(row)
+                Return (Not before.HasValue, If(before, 0D))
+            End Function
+
+            ''' <summary>
+            ''' The row for this shop and product, creating an empty one if the product has never
+            ''' been here. A row with zero quantity is meaningful: it is how a shop can be given a
+            ''' price before any stock arrives.
+            ''' </summary>
+            Private Function GetOrCreate(shopId As Integer, productId As Integer) As ShopStock
+                Dim row = Find(shopId, productId)
+                If row IsNot Nothing Then Return row
+
+                ' OrganizationId is left for the store to stamp, exactly as every other row
+                ' created by a service is.
+                row = New ShopStock With {.ShopId = shopId, .ProductId = productId, .QuantityOnHand = 0D}
+                _touched((shopId, productId)) = row
+                _added.Add(row)
+                _shopStocks.Add(row)
+                Return row
+            End Function
 
             ''' <summary>How much of a product the shops hold between them, pending changes included.</summary>
             Public Function AllocatedTotal(productId As Integer) As Decimal

@@ -15,6 +15,11 @@ Namespace Forms
         Private ReadOnly _navButtons As New List(Of Button)()
         Private _currentKey As String
 
+        ' Shared rather than built per navigation: a new Font per button per click was never
+        ' released, and a GDI handle leaks with each one.
+        Private Shared ReadOnly NavFontInactive As New Font("Segoe UI", 9.5F, FontStyle.Regular)
+        Private Shared ReadOnly NavFontActive As New Font("Segoe UI", 9.5F, FontStyle.Bold)
+
         Public ReadOnly Property SignOutRequested As Boolean
 
         Public Sub New()
@@ -37,11 +42,14 @@ Namespace Forms
             _nav.BackColor = UiKit.Sidebar
             _nav.FlowDirection = FlowDirection.TopDown
             _nav.WrapContents = False
+            ' Only scrolls when the window is too short for every item, so Sign out is never lost
+            ' off the bottom. Everything in it is sized to leave room for the scrollbar.
+            _nav.AutoScroll = True
             _nav.Padding = New Padding(0, 12, 0, 12)
 
             Dim brand As New Label With {
                 .Text = "  GMS", .ForeColor = Color.White, .Font = New Font("Segoe UI Semibold", 15.0F),
-                .AutoSize = False, .Size = New Size(220, 44), .TextAlign = ContentAlignment.MiddleLeft,
+                .AutoSize = False, .Size = New Size(200, 44), .TextAlign = ContentAlignment.MiddleLeft,
                 .Margin = New Padding(0, 0, 0, 12)}
             _nav.Controls.Add(brand)
 
@@ -59,7 +67,7 @@ Namespace Forms
             AddNav("audit", "Audit trail", PermissionCodes.Audit.View, Function() New AuditView())
             AddNav("settings", "Settings", PermissionCodes.Settings.Manage, Function() New SettingsView())
 
-            Dim spacer As New Panel With {.Size = New Size(200, 24)}
+            Dim spacer As New Panel With {.Size = New Size(190, 16)}
             _nav.Controls.Add(spacer)
 
             ' The shop is named here because everything a pinned attendant sees is silently
@@ -70,7 +78,7 @@ Namespace Forms
             End If
             Dim who As New Label With {
                 .Text = whoLines,
-                .ForeColor = Color.Gainsboro, .AutoSize = False, .Size = New Size(210, 58),
+                .ForeColor = Color.Gainsboro, .AutoSize = False, .Size = New Size(196, 58),
                 .Font = New Font("Segoe UI", 8.5F)}
             _nav.Controls.Add(who)
 
@@ -119,8 +127,8 @@ Namespace Forms
             Dim b As New Button With {
                 .Text = "   " & text, .Tag = New NavEntry(key, factory),
                 .TextAlign = ContentAlignment.MiddleLeft, .FlatStyle = FlatStyle.Flat,
-                .ForeColor = Color.Gainsboro, .BackColor = UiKit.Sidebar,
-                .Size = New Size(200, 40), .Margin = New Padding(6, 1, 6, 1),
+                .ForeColor = Color.Gainsboro, .BackColor = UiKit.Sidebar, .UseMnemonic = False,
+                .Size = New Size(190, 36), .Margin = New Padding(6, 1, 6, 1),
                 .Font = New Font("Segoe UI", 9.5F), .Cursor = Cursors.Hand}
             b.FlatAppearance.BorderSize = 0
             b.FlatAppearance.MouseOverBackColor = UiKit.SidebarHover
@@ -133,7 +141,7 @@ Namespace Forms
             Dim b As New Button With {
                 .Text = "   " & text, .TextAlign = ContentAlignment.MiddleLeft, .FlatStyle = FlatStyle.Flat,
                 .ForeColor = Color.FromArgb(147, 197, 253), .BackColor = UiKit.Sidebar,
-                .Size = New Size(200, 30), .Margin = New Padding(6, 1, 6, 1), .Cursor = Cursors.Hand,
+                .Size = New Size(190, 30), .Margin = New Padding(6, 1, 6, 1), .Cursor = Cursors.Hand, .UseMnemonic = False,
                 .Font = New Font("Segoe UI", 8.5F)}
             b.FlatAppearance.BorderSize = 0
             b.FlatAppearance.MouseOverBackColor = UiKit.SidebarHover
@@ -153,8 +161,12 @@ Namespace Forms
                 Return
             End Try
 
+            ' Snapshot before clearing: Clear() empties the collection, so walking it afterwards
+            ' disposed nothing and every screen ever opened - grids, fonts, handles, and the
+            ' dashboard's ThemeChanged subscription - stayed alive for the rest of the session.
+            Dim previous = _content.Controls.Cast(Of Control)().ToList()
             _content.Controls.Clear()
-            For Each old As Control In _content.Controls : old.Dispose() : Next
+            For Each old In previous : old.Dispose() : Next
             view.Dock = DockStyle.Fill
             _content.Controls.Add(view)
             _currentKey = key
@@ -176,7 +188,7 @@ Namespace Forms
                 Dim active = CType(b.Tag, NavEntry).Key = _currentKey
                 b.BackColor = If(active, DesktopTheme.SidebarHoverBack, DesktopTheme.SidebarBack)
                 b.ForeColor = If(active, DesktopTheme.NavTextActive, DesktopTheme.NavTextInactive)
-                b.Font = New Font("Segoe UI", 9.5F, If(active, FontStyle.Bold, FontStyle.Regular))
+                b.Font = If(active, NavFontActive, NavFontInactive)
             Next
         End Sub
 

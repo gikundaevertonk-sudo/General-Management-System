@@ -27,6 +27,13 @@ Namespace Views
         Private ReadOnly _canAllocate As Boolean
         Private ReadOnly _pinnedShopId As Integer?
 
+        ' Rebinding the top grid raises SelectionChanged, often more than once, and each one used
+        ' to re-read the selected location's stock from the database. Reload suppresses those and
+        ' loads the bottom grid once itself; _shownKey stops a click on the row already shown
+        ' from fetching it again.
+        Private _rebinding As Boolean
+        Private _shownKey As String
+
         Public Sub New()
             MyBase.New("Shops")
             Dim principal = AppHost.Current.Session.Principal
@@ -72,7 +79,7 @@ Namespace Views
             _locations.Columns.Add(UiKit.NumberColumn("Value at cost", "StockValueAtCost", "N2", 110))
             _locations.Columns.Add(UiKit.NumberColumn("Low", "LowStockCount", "N0", 60))
             _locations.Columns.Add(UiKit.TextColumn("Open", "OpenText", width:=64))
-            AddHandler _locations.SelectionChanged, Sub() LoadStockForSelection()
+            AddHandler _locations.SelectionChanged, Sub() If Not _rebinding Then LoadStockForSelection()
             AddHandler _locations.CellDoubleClick, Sub(s, e) If e.RowIndex >= 0 Then EditSelected()
 
             _stock.Columns.Add(UiKit.TextColumn("SKU", "Sku", width:=120))
@@ -128,8 +135,14 @@ Namespace Views
                             Next
                         End If
 
-                        _locations.DataSource = rows
-                        LoadStockForSelection()
+                        _rebinding = True
+                        Try
+                            _locations.DataSource = rows
+                        Finally
+                            _rebinding = False
+                        End Try
+                        ' Forced: the selection may be the same location, but its figures are not.
+                        LoadStockForSelection(force:=True)
                     End Sub)
         End Sub
 
@@ -152,19 +165,25 @@ Namespace Views
             Return TryCast(_locations.CurrentRow?.DataBoundItem, LocationRow)
         End Function
 
-        Private Sub LoadStockForSelection()
+        Private Sub LoadStockForSelection(Optional force As Boolean = False)
             Dim row = Selected()
             If row Is Nothing Then
+                _shownKey = Nothing
                 _stockHeading.Text = "Stock"
                 _stock.DataSource = Nothing
                 Return
             End If
+
+            Dim key = If(row.ShopId.HasValue, row.ShopId.Value.ToString(), "central")
+            If Not force AndAlso key = _shownKey Then Return
+            _shownKey = key
 
             Guarded(Sub()
                         _stockHeading.Text = $"Stock at {row.Name}"
                         Dim held = AppHost.Current.Resolve(Of InventoryService)().
                             GetStockAt(row.ShopId, New QueryOptions With {.PageSize = QueryOptions.MaxPageSize})
                         If held.Failed Then
+                            _shownKey = Nothing
                             _stock.DataSource = Nothing
                             Return
                         End If

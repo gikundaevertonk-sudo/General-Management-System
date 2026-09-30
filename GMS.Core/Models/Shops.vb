@@ -50,6 +50,18 @@ Namespace Models
         Public Property Product As Product
 
         Public Property QuantityOnHand As Decimal
+
+        ''' <summary>
+        ''' What this product sells for at this shop. <c>Nothing</c> means "whatever the product
+        ''' costs everywhere else" - <see cref="Product.UnitPrice"/>.
+        ''' </summary>
+        ''' <remarks>
+        ''' Set when a manager allocates stock here, or changed afterwards, so the same item can be
+        ''' 10 at one branch and 20 at another. Nullable rather than defaulted to the product's
+        ''' price so the two cases stay distinguishable: a shop with no price of its own follows
+        ''' the catalogue when that price changes, while a shop that has been given one keeps it.
+        ''' </remarks>
+        Public Property UnitPrice As Decimal?
     End Class
 
 End Namespace

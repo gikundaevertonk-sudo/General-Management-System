@@ -131,7 +131,7 @@ Namespace Services
                 PermissionCodes.Transactions.Confirm, PermissionCodes.Transactions.Cancel,
                 PermissionCodes.Inventory.View, PermissionCodes.Inventory.Adjust,
                 PermissionCodes.Reports.View, PermissionCodes.Audit.View,
-                PermissionCodes.Shops.View, PermissionCodes.Shops.Allocate
+                PermissionCodes.Shops.View, PermissionCodes.Shops.Manage, PermissionCodes.Shops.Allocate
             })
 
             SetRolePermissions(staff, {
@@ -143,16 +143,20 @@ Namespace Services
             })
 
             ' A shop attendant holds ordinary counter permissions - including Confirm, because
-            ' completing the sale in front of the customer is the job. What makes them an
-            ' attendant is not this set but User.ShopId, which confines every one of these
-            ' permissions to their own shop. They cannot allocate: stock reaches a branch because
-            ' a manager sent it, never because the branch helped itself.
+            ' completing the sale in front of the customer is the job, and Reports, so they can run
+            ' their own branch's figures. What makes them an attendant is not this set but
+            ' User.ShopId, which confines every one of these permissions to their own shop: the
+            ' same Reports screen a manager uses to see the company shows them only their counter.
+            ' They cannot allocate: stock reaches a branch because a manager sent it, never because
+            ' the branch helped itself. They have no Audit either - the trail records who signed in
+            ' across the whole organisation and belongs to the people running it.
             SetRolePermissions(attendant, {
                 PermissionCodes.Products.View, PermissionCodes.Categories.View,
                 PermissionCodes.Customers.View, PermissionCodes.Customers.Edit,
                 PermissionCodes.Transactions.View, PermissionCodes.Transactions.Create,
                 PermissionCodes.Transactions.Confirm,
-                PermissionCodes.Inventory.View, PermissionCodes.Shops.View
+                PermissionCodes.Inventory.View, PermissionCodes.Shops.View,
+                PermissionCodes.Reports.View
             })
 
             Return (admin, manager, staff, attendant)

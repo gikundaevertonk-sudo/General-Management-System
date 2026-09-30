@@ -47,6 +47,9 @@ Namespace Services
                 q = q.Where(Function(p) p.CategoryId.HasValue AndAlso p.CategoryId.Value = cid)
             End If
             If activeOnly Then q = q.Where(Function(p) p.IsActive)
+
+            If PinnedShopId.HasValue Then Return SearchForShop(q, options, lowStockOnly)
+
             If lowStockOnly Then q = q.Where(Function(p) p.QuantityOnHand <= p.ReorderLevel)
 
             Dim total = q.Count()
@@ -55,18 +58,65 @@ Namespace Services
                 New PagedResult(Of Product)(items, total, options.Page, options.PageSize))
         End Function
 
+        ''' <summary>
+        ''' The catalogue as one shop sees it: the same products, but each one's quantity and price
+        ''' are that shop's rather than the organisation's.
+        ''' </summary>
+        ''' <remarks>
+        ''' Rewriting <c>QuantityOnHand</c> and <c>UnitPrice</c> on the returned instances is
+        ''' deliberate, and safe because EF reads are NoTracking - these are detached copies that
+        ''' are never saved, and the caller only reads them. It is done here rather than by giving
+        ''' the caller a different row type so that every existing screen and picker in both front
+        ''' ends shows an attendant the right figures without being rewritten. Without it the
+        ''' Products list told someone standing at one counter what the whole company held.
+        '''
+        ''' <c>GetById</c> deliberately does *not* do this: it is what the product editor loads and
+        ''' saves back, so a shop price must never be able to overwrite the catalogue price. Nobody
+        ''' pinned to a shop can edit products today, and this keeps that true even if they could.
+        '''
+        ''' Filtering, sorting and paging move in-memory because the figures being filtered on are
+        ''' no longer the ones in the products table. A small business's catalogue is small enough
+        ''' that this costs nothing; the organisation-wide path above is untouched.
+        ''' </remarks>
+        Private Function SearchForShop(q As IQueryable(Of Product), options As QueryOptions,
+                                       lowStockOnly As Boolean) As Result(Of PagedResult(Of Product))
+            Dim shopId = PinnedShopId.Value
+            Dim atShop = Uow.Repository(Of ShopStock)().Query().
+                Where(Function(s) s.ShopId = shopId).
+                Select(Function(s) New With {s.ProductId, s.QuantityOnHand, s.UnitPrice}).
+                ToList()
+            Dim quantities = atShop.ToDictionary(Function(s) s.ProductId, Function(s) s.QuantityOnHand)
+            Dim prices = atShop.Where(Function(s) s.UnitPrice.HasValue).
+                ToDictionary(Function(s) s.ProductId, Function(s) s.UnitPrice.Value)
+
+            Dim all = q.ToList()
+            For Each p In all
+                p.QuantityOnHand = quantities.GetValueOrDefault(p.Id, 0D)
+                If prices.ContainsKey(p.Id) Then p.UnitPrice = prices(p.Id)
+            Next
+            If lowStockOnly Then all = all.Where(Function(p) p.QuantityOnHand <= p.ReorderLevel).ToList()
+
+            Dim sorted = SortProducts(all.AsQueryable(), options).ToList()
+            Return Result(Of PagedResult(Of Product)).Ok(
+                New PagedResult(Of Product)(sorted.Skip(options.Skip).Take(options.PageSize).ToList(),
+                                            sorted.Count, options.Page, options.PageSize))
+        End Function
+
         Public Function GetById(id As Integer) As Result(Of Product)
             If Denied(PermissionCodes.Products.View) Then Return Forbidden(Of Product)()
             Dim entity = Uow.Repository(Of Product)().GetById(id)
             Return If(entity Is Nothing, NotFound(Of Product)("Product"), Result(Of Product).Ok(entity))
         End Function
 
+        ''' <summary>
+        ''' Products at or below their reorder level. Routed through <see cref="Search"/> so a
+        ''' caller pinned to a shop is told what *their* shelves are short of, not the company's.
+        ''' </summary>
         Public Function LowStock() As Result(Of IReadOnlyList(Of Product))
-            If Denied(PermissionCodes.Products.View) Then Return Forbidden(Of IReadOnlyList(Of Product))()
-            Dim items = Uow.Repository(Of Product)().Query().
-                Where(Function(p) p.IsActive AndAlso p.QuantityOnHand <= p.ReorderLevel).
-                OrderBy(Function(p) p.Name).ToList()
-            Return Result(Of IReadOnlyList(Of Product)).Ok(items)
+            Dim found = Search(New QueryOptions With {.PageSize = QueryOptions.MaxPageSize, .SortBy = "name"},
+                               activeOnly:=True, lowStockOnly:=True)
+            If found.Failed Then Return Result(Of IReadOnlyList(Of Product)).Fail(found.ErrorMessage)
+            Return Result(Of IReadOnlyList(Of Product)).Ok(found.Value.Items)
         End Function
 
         Public Function Create(input As ProductInput) As Result(Of Product)

@@ -137,7 +137,12 @@ Namespace Services
             Dim product = Uow.Repository(Of Product)().GetById(input.ProductId)
             If product Is Nothing Then Return Result(Of Transaction).Fail("The selected product was not found.")
 
-            Dim defaultPrice = If(txn.Type = TransactionType.Purchase, product.CostPrice, product.UnitPrice)
+            ' A sale is priced at the location it is being made from, so the same item can be 10 at
+            ' one branch and 20 at another. A purchase is priced at cost, which is what was paid to
+            ' the supplier and has nothing to do with where the goods are going.
+            Dim defaultPrice = If(txn.Type = TransactionType.Purchase,
+                                  product.CostPrice,
+                                  _inventory.SalePriceAt(txn.ShopId, product))
             Dim unitPrice = If(input.UnitPrice.HasValue, input.UnitPrice.Value, defaultPrice)
             If unitPrice < 0D Then Return Result(Of Transaction).Fail("Unit price cannot be negative.")
 
@@ -200,7 +205,8 @@ Namespace Services
                           New Dictionary(Of String, FieldChange) From {{"Status", New FieldChange("Draft", "Confirmed")}})
             Uow.SaveChanges()
 
-            _notifications.RaiseLowStockFor(txn.Lines.Select(Function(l) l.ProductId).Distinct())
+            ' Raised against the location that just lost the stock, so it says which shop is short.
+            _notifications.RaiseLowStockFor(txn.Lines.Select(Function(l) l.ProductId).Distinct(), txn.ShopId)
             Return Result.Ok()
         End Function
 

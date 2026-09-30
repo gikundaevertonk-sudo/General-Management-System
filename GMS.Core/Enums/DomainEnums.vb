@@ -55,6 +55,12 @@ Namespace Enums
         Create = 1
         Update = 2
         Delete = 3
+        ''' <summary>
+        ''' A successful sign-in. Written by <c>AuthService</c> so the audit trail can be read as a
+        ''' list of sessions, and everything else a user did can be attributed to the session it
+        ''' happened in.
+        ''' </summary>
+        Login = 4
     End Enum
 
 End Namespace

@@ -12,6 +12,13 @@ Namespace App
         Public ReadOnly Sidebar As Color = Color.FromArgb(17, 24, 39)
         Public ReadOnly SidebarHover As Color = Color.FromArgb(31, 41, 55)
         Public ReadOnly PageBack As Color = Color.FromArgb(243, 244, 246)
+
+        ' Every button that is not the primary action wears these, so a toolbar reads as one family.
+        ' The old white-on-white with a pale grey edge disappeared against the white card behind it.
+        ' DesktopTheme maps the tint and the border by value for dark mode.
+        Public ReadOnly ButtonTint As Color = Color.FromArgb(239, 246, 255)
+        Public ReadOnly ButtonTintHover As Color = Color.FromArgb(219, 234, 254)
+        Public ReadOnly ButtonEdge As Color = Color.FromArgb(96, 165, 250)
         Public ReadOnly CardBack As Color = Color.White
         Public ReadOnly MutedText As Color = Color.FromArgb(107, 114, 128)
 
@@ -46,8 +53,8 @@ Namespace App
 
         Public Function PrimaryButton(text As String) As Button
             Dim b As New Button With {
-                .Text = text, .AutoSize = False, .Height = 34, .MinimumSize = New Size(96, 34),
-                .FlatStyle = FlatStyle.Flat, .BackColor = Accent, .ForeColor = Color.White,
+                .Text = text, .AutoSize = True, .AutoSizeMode = AutoSizeMode.GrowAndShrink, .MinimumSize = New Size(96, 34),
+                .UseMnemonic = False, .FlatStyle = FlatStyle.Flat, .BackColor = Accent, .ForeColor = Color.White,
                 .Font = New Font("Segoe UI", 9.0F, FontStyle.Bold), .Cursor = Cursors.Hand,
                 .Padding = New Padding(10, 0, 10, 0)}
             b.FlatAppearance.BorderSize = 0
@@ -57,10 +64,12 @@ Namespace App
 
         Public Function SecondaryButton(text As String) As Button
             Dim b As New Button With {
-                .Text = text, .AutoSize = False, .Height = 34, .MinimumSize = New Size(90, 34),
-                .FlatStyle = FlatStyle.Flat, .BackColor = Color.White, .ForeColor = Color.FromArgb(31, 41, 55),
+                .Text = text, .AutoSize = True, .AutoSizeMode = AutoSizeMode.GrowAndShrink, .MinimumSize = New Size(90, 34),
+                .UseMnemonic = False, .FlatStyle = FlatStyle.Flat, .BackColor = ButtonTint, .ForeColor = AccentDark,
+                .Font = New Font("Segoe UI", 9.0F, FontStyle.Bold),
                 .Cursor = Cursors.Hand, .Padding = New Padding(10, 0, 10, 0)}
-            b.FlatAppearance.BorderColor = Color.FromArgb(209, 213, 219)
+            b.FlatAppearance.BorderColor = ButtonEdge
+            b.FlatAppearance.MouseOverBackColor = ButtonTintHover
             Return b
         End Function
 

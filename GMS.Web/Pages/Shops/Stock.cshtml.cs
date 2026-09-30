@@ -39,7 +39,12 @@ public class StockModel(
     [BindProperty] public int AllocateProductId { get; set; }
     [BindProperty] public string? AllocateTo { get; set; }
     [BindProperty] public decimal AllocateQty { get; set; } = 1;
+    [BindProperty] public decimal? AllocatePrice { get; set; }
     [BindProperty] public string? AllocateNote { get; set; }
+
+    // re-price form
+    [BindProperty] public int PriceProductId { get; set; }
+    [BindProperty] public decimal? NewPrice { get; set; }
 
     public bool CanAllocate => me.HasPermission(GMS.Core.Security.PermissionCodes.Shops.Allocate);
 
@@ -51,8 +56,20 @@ public class StockModel(
         // empty <option> is indistinguishable from one that was never submitted.
         int? destination = string.IsNullOrEmpty(AllocateTo) ? null : int.Parse(AllocateTo);
 
-        var result = inventory.Allocate(AllocateProductId, ShopId, destination, AllocateQty, AllocateNote ?? "");
+        var result = inventory.Allocate(AllocateProductId, ShopId, destination, AllocateQty,
+                                        AllocateNote ?? "", AllocatePrice);
         TempData["Flash"] = result.Succeeded ? "Stock allocated." : result.ErrorMessage;
+        return RedirectToPage(new { shopId = ShopId, q = Q, pageNo = PageNo });
+    }
+
+    /// <summary>Changes what one product sells for here, without moving any stock.</summary>
+    public IActionResult OnPostPrice()
+    {
+        if (ShopId is not int shop) return RedirectToPage(new { q = Q, pageNo = PageNo });
+        var result = inventory.SetShopPrice(shop, PriceProductId, NewPrice);
+        TempData["Flash"] = result.Succeeded
+            ? (NewPrice is null ? "Price reset to the catalogue price." : "Price updated.")
+            : result.ErrorMessage;
         return RedirectToPage(new { shopId = ShopId, q = Q, pageNo = PageNo });
     }
 

@@ -4,33 +4,91 @@
 
 <div class="page-head"><h1>Audit trail</h1></div>
 
+<p class="muted">Every sign-in, newest first. Click one to see what was done under it.</p>
+
 <form method="get" class="row g-2 mb-3">
-    <div class="col-12 col-md-4"><input name="q" value="@Model.Q" class="form-control form-control-sm" placeholder="Filter by user, entity or id…" /></div>
+    <div class="col-12 col-md-4"><input name="q" value="@Model.Q" class="form-control form-control-sm" placeholder="Filter by user…" /></div>
     <div class="col-auto"><button class="btn btn-outline-secondary btn-sm">Search</button></div>
 </form>
 
-@if (Model.Results is { } r)
+@if (Model.Error is not null) { <div class="alert alert-warning">@Model.Error</div> }
+
+@if (Model.Logins is { } r)
 {
-    <div class="card"><div class="table-responsive"><table class="table table-sm mb-0">
-        <thead><tr><th>When (UTC)</th><th>User</th><th>Action</th><th>Entity</th><th>Id</th><th>Changes</th></tr></thead>
-        <tbody>
-        @foreach (var a in r.Items)
-        {
+    <div class="card"><div class="table-responsive"><table class="table table-sm table-hover mb-0 align-middle">
+        <thead>
             <tr>
-                <td class="muted text-nowrap">@a.TimestampUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
-                <td>@a.UserName</td>
-                <td>@a.Action</td>
-                <td>@a.EntityName</td>
-                <td>@a.EntityId</td>
-                <td><code class="small">@(a.ChangesJson == "{}" ? "" : a.ChangesJson)</code></td>
+                <th>Signed in (UTC)</th><th>User</th><th>Shop</th>
+                <th class="text-end">Transactions</th><th class="text-end">Changes</th><th>Session ended</th><th></th>
             </tr>
+        </thead>
+        <tbody>
+        @foreach (var l in r.Items)
+        {
+            var isOpen = Model.SessionId == l.AuditEntryId;
+            <tr class="@(isOpen ? "table-active" : "")">
+                <td class="muted text-nowrap">@l.SignedInAtUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                <td>@l.UserName @if (!string.IsNullOrWhiteSpace(l.FullName)) { <span class="muted small">(@l.FullName)</span> }</td>
+                <td>@(string.IsNullOrEmpty(l.ShopName) ? "All shops" : l.ShopName)</td>
+                <td class="text-end">@l.TransactionCount</td>
+                <td class="text-end">@l.ActionCount</td>
+                <td class="muted text-nowrap">@(l.EndedAtUtc?.ToString("yyyy-MM-dd HH:mm") ?? "—")</td>
+                <td class="text-end">
+                    @if (isOpen)
+                    {
+                        <a class="btn btn-sm btn-link py-0" asp-route-q="@Model.Q" asp-route-pageNo="@Model.PageNo">Hide</a>
+                    }
+                    else
+                    {
+                        <a class="btn btn-sm btn-link py-0" asp-route-sessionId="@l.AuditEntryId" asp-route-q="@Model.Q" asp-route-pageNo="@Model.PageNo">View activity</a>
+                    }
+                </td>
+            </tr>
+
+            @if (isOpen)
+            {
+                <tr>
+                    <td colspan="7" class="bg-body-tertiary">
+                        @if (Model.Activity.Count == 0)
+                        {
+                            <span class="muted small">Nothing was recorded during this session.</span>
+                        }
+                        else
+                        {
+                            <table class="table table-sm mb-0">
+                                <thead><tr><th>When (UTC)</th><th>What</th><th class="text-end">Total</th><th>Details</th></tr></thead>
+                                <tbody>
+                                @foreach (var a in Model.Activity)
+                                {
+                                    <tr>
+                                        <td class="muted text-nowrap">@a.WhenUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                        <td>
+                                            @if (a.TransactionId is int tid)
+                                            {
+                                                <a asp-page="/Transactions/Edit" asp-route-id="@tid">@a.Summary</a>
+                                            }
+                                            else
+                                            {
+                                                @a.Summary
+                                            }
+                                        </td>
+                                        <td class="text-end">@(a.TransactionTotal?.ToString("N2") ?? "")</td>
+                                        <td><code class="small">@a.ChangesJson</code></td>
+                                    </tr>
+                                }
+                                </tbody>
+                            </table>
+                        }
+                    </td>
+                </tr>
+            }
         }
-        @if (r.Items.Count == 0) { <tr><td colspan="6" class="muted">No audit entries.</td></tr> }
+        @if (r.Items.Count == 0) { <tr><td colspan="7" class="muted">No sign-ins recorded yet.</td></tr> }
         </tbody>
     </table></div></div>
 
     <nav class="mt-3 d-flex justify-content-between align-items-center">
-        <span class="muted small">Page @r.Page of @Math.Max(1, r.TotalPages) · @r.TotalCount</span>
+        <span class="muted small">Page @r.Page of @Math.Max(1, r.TotalPages) · @r.TotalCount sign-in(s)</span>
         <div class="btn-group btn-group-sm">
             <a class="btn btn-outline-secondary @(r.HasPrevious ? "" : "disabled")" asp-route-pageNo="@(r.Page - 1)" asp-route-q="@Model.Q">‹ Prev</a>
             <a class="btn btn-outline-secondary @(r.HasNext ? "" : "disabled")" asp-route-pageNo="@(r.Page + 1)" asp-route-q="@Model.Q">Next ›</a>

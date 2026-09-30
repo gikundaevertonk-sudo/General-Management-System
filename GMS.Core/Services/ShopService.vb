@@ -95,8 +95,10 @@ Namespace Services
                 GroupBy(Function(shopId) shopId).
                 ToDictionary(Function(g) g.Key, Function(g) g.Count())
 
+            ' Only the three columns the figures need, not whole rows.
             Dim stockByShop = Uow.Repository(Of ShopStock)().Query().
                 Where(Function(s) s.QuantityOnHand <> 0D).
+                Select(Function(s) New ShopStock With {.ShopId = s.ShopId, .ProductId = s.ProductId, .QuantityOnHand = s.QuantityOnHand}).
                 ToList().
                 GroupBy(Function(s) s.ShopId).
                 ToDictionary(Function(g) g.Key, Function(g) g.ToList())
@@ -208,6 +210,86 @@ Namespace Services
                             {"IsActive", New FieldChange(Not isActive, isActive)}})
             Uow.SaveChanges()
             Return Result.Ok()
+        End Function
+
+        ''' <summary>The accounts currently pinned to one shop.</summary>
+        Public Function GetStaff(shopId As Integer) As Result(Of IReadOnlyList(Of User))
+            If Denied(PermissionCodes.Shops.View) Then Return Forbidden(Of IReadOnlyList(Of User))()
+            If OutsideShopScope(shopId) Then Return ForbiddenShop(Of IReadOnlyList(Of User))()
+
+            Dim staff = Uow.Repository(Of User)().Query().
+                Where(Function(u) u.ShopId.HasValue AndAlso u.ShopId.Value = shopId).
+                OrderBy(Function(u) u.UserName).ToList()
+            Return Result(Of IReadOnlyList(Of User)).Ok(staff)
+        End Function
+
+        ''' <summary>
+        ''' Puts a member of staff on a shop, or moves them from whichever shop they were on.
+        ''' </summary>
+        ''' <remarks>
+        ''' Gated on <c>shops.manage</c> rather than <c>users.manage</c> on purpose: deciding who
+        ''' runs a branch is running the branch, not administering accounts, and a manager should be
+        ''' able to hand a shop to someone new without also being able to create users or change
+        ''' anyone's role. Nothing else about the account is touched.
+        ''' </remarks>
+        Public Function AssignStaff(shopId As Integer, userId As Integer) As Result
+            If Denied(PermissionCodes.Shops.Manage) Then Return Forbidden()
+            If OutsideShopScope(shopId) Then Return ForbiddenShop()
+
+            Dim shop = Uow.Repository(Of Shop)().GetById(shopId)
+            If shop Is Nothing Then Return NotFound("Shop")
+            If Not shop.IsActive Then Return Result.Fail($"'{shop.Name}' is closed. Reopen it before assigning staff.")
+
+            Dim repo = Uow.Repository(Of User)()
+            Dim user = repo.GetById(userId)
+            If user Is Nothing Then Return NotFound("User")
+            If user.ShopId.HasValue AndAlso user.ShopId.Value = shopId Then Return Result.Ok()
+
+            Dim previous = If(user.ShopId.HasValue,
+                              If(Uow.Repository(Of Shop)().GetById(user.ShopId.Value)?.Name, "another shop"),
+                              "all shops")
+
+            user.ShopId = shopId
+            user.UpdatedAtUtc = Clock.UtcNow
+            user.UpdatedByUserId = CurrentUser.UserId
+            repo.Update(user)
+            _audit.Record(NameOf(User), user.Id.ToString(), AuditAction.Update,
+                          New Dictionary(Of String, FieldChange) From {
+                            {"Shop", New FieldChange(previous, shop.Name)}})
+            Uow.SaveChanges()
+            Return Result.Ok()
+        End Function
+
+        ''' <summary>Takes a member of staff off their shop, returning them to organisation-wide access.</summary>
+        Public Function UnassignStaff(userId As Integer) As Result
+            If Denied(PermissionCodes.Shops.Manage) Then Return Forbidden()
+
+            Dim repo = Uow.Repository(Of User)()
+            Dim user = repo.GetById(userId)
+            If user Is Nothing Then Return NotFound("User")
+            If Not user.ShopId.HasValue Then Return Result.Ok()
+            If OutsideShopScope(user.ShopId) Then Return ForbiddenShop()
+
+            Dim previous = If(Uow.Repository(Of Shop)().GetById(user.ShopId.Value)?.Name, "a shop")
+            user.ShopId = Nothing
+            user.UpdatedAtUtc = Clock.UtcNow
+            user.UpdatedByUserId = CurrentUser.UserId
+            repo.Update(user)
+            _audit.Record(NameOf(User), user.Id.ToString(), AuditAction.Update,
+                          New Dictionary(Of String, FieldChange) From {
+                            {"Shop", New FieldChange(previous, "all shops")}})
+            Uow.SaveChanges()
+            Return Result.Ok()
+        End Function
+
+        ''' <summary>
+        ''' Accounts that could be put on a shop: everyone active, with the shop they are on now.
+        ''' </summary>
+        Public Function AssignableStaff() As Result(Of IReadOnlyList(Of User))
+            If Denied(PermissionCodes.Shops.Manage) Then Return Forbidden(Of IReadOnlyList(Of User))()
+            Return Result(Of IReadOnlyList(Of User)).Ok(
+                Uow.Repository(Of User)().Query().Where(Function(u) u.IsActive).
+                    OrderBy(Function(u) u.UserName).ToList())
         End Function
 
         ''' <summary>
