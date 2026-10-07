@@ -302,6 +302,46 @@ public class SyncTests
     }
 
     [PostgresFact]
+    public void A_row_whose_transaction_commits_late_still_reaches_the_till()
+    {
+        using var world = new World();
+        var till = world.NewTill("T1");
+        world.Sync(till);
+
+        // A slow writer takes its sync_version now but commits later.
+        using var slow = new NpgsqlConnection(world.Database.ConnectionString);
+        slow.Open();
+        using var tx = slow.BeginTransaction();
+        using (var insert = new NpgsqlCommand(
+            "insert into customers (organization_id, name, is_active, created_at_utc) values (@org, 'Slow', true, now())", slow, tx))
+        {
+            insert.Parameters.AddWithValue("org", world.Org.Id);
+            insert.ExecuteNonQuery();
+        }
+
+        // Meanwhile the shared sequence moves on - other organizations' traffic - and this
+        // organization commits a quicker row, then the till syncs while the slow one is open.
+        using (var others = new NpgsqlConnection(world.Database.ConnectionString))
+        {
+            others.Open();
+            using var burn = new NpgsqlCommand(
+                "select nextval('gms_sync_version_seq') from generate_series(1, 1000)", others);
+            burn.ExecuteNonQuery();
+        }
+        Ok(world.Server.Get<CustomerService>().Create(new CustomerInput { Name = "Quick", IsActive = true }));
+        world.Sync(till);
+        // The open transaction does not hold back what has already committed.
+        Assert.Contains("Quick", till.Host.Get<GmsDbContext>().Customers.Select(c => c.Name).ToList());
+
+        tx.Commit();
+        world.Sync(till);
+
+        var names = till.Host.Get<GmsDbContext>().Customers.Select(c => c.Name).ToList();
+        Assert.Contains("Quick", names);
+        Assert.Contains("Slow", names);
+    }
+
+    [PostgresFact]
     public void Nothing_is_lost_while_the_server_cannot_be_reached()
     {
         using var world = new World();

@@ -198,6 +198,7 @@ Namespace Data
                 For Each entity In b.Model.GetEntityTypes().ToList()
                     If Not GetType(EntityBase).IsAssignableFrom(entity.ClrType) Then Continue For
                     b.Entity(entity.ClrType).Property(Of Long)(SyncVersionProperty).ValueGeneratedOnAddOrUpdate()
+                    b.Entity(entity.ClrType).Property(Of Long)(SyncXidProperty).ValueGeneratedOnAddOrUpdate()
                 Next
             End If
 
@@ -206,6 +207,12 @@ Namespace Data
 
         ''' <summary>Shadow property on PostgreSQL rows: when each was last changed, in sync order.</summary>
         Public Const SyncVersionProperty As String = "SyncVersion"
+
+        ''' <summary>
+        ''' Shadow property on PostgreSQL rows: the transaction that last changed each one. The
+        ''' desktop sync pages by this, not by version; see gms_stamp_sync_version in the schema.
+        ''' </summary>
+        Public Const SyncXidProperty As String = "SyncXid"
 
         ''' <summary>True for the desktop client's SQLite copy (see <see cref="Sync.LocalStore"/>).</summary>
         Public ReadOnly Property IsLocalStore As Boolean

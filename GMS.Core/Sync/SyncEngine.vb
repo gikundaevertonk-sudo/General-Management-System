@@ -63,14 +63,6 @@ Namespace Sync
     ''' </remarks>
     Public NotInheritable Class SyncEngine
 
-        ''' <summary>
-        ''' How far back each pull re-reads, in sync versions. A version is taken when a row is
-        ''' written but only visible once its transaction commits, so a slow transaction can
-        ''' become visible after a later one has already been pulled. Re-reading a margin catches
-        ''' those; the rows are applied idempotently, so re-reading costs nothing but bandwidth.
-        ''' </summary>
-        Public Const PullOverlap As Long = 100
-
         Private Const PageSize As Integer = 500
         Private Const PushBatchSize As Integer = 200
 
@@ -609,44 +601,87 @@ Namespace Sync
 
         Private NotInheritable Class PulledRow(Of T)
             Public Property Row As T
+            Public Property Xid As Long
             Public Property Version As Long
         End Class
 
+        ''' <remarks>
+        ''' Each table's cursor is a transaction id. A pull reads every visible row written by the
+        ''' cursor's transaction or a later one, then moves the cursor to the horizon: the oldest
+        ''' transaction that was still running when the pull began. Every transaction below the
+        ''' horizon had finished, so all their rows were visible to this pull; anything still open
+        ''' is at or above it, so the next pull reads it once it commits. Nothing can land behind
+        ''' the cursor unseen - which paging by sync_version alone could not promise, because a
+        ''' version is taken when a row is written and a slow transaction's row can become visible
+        ''' after a later version was pulled.
+        ''' Rows at or above the horizon are read again next time. Applying a row twice changes
+        ''' nothing, so a transaction left open on the server costs some re-reading, not freshness.
+        ''' </remarks>
         Private Sub Pull(local As GmsDbContext, server As GmsDbContext, organizationId As Integer,
                          ids As IdMap, report As SyncReport)
+            Dim horizon = TransactionHorizon(server)
             For Each type In SyncCatalog.Pulled
-                InvokeGeneric(NameOf(PullType), type, local, server, organizationId, ids, report)
+                InvokeGeneric(NameOf(PullType), type, local, server, organizationId, ids, horizon, report)
             Next
             PullRolePermissions(local, server)
-            PullDeletions(local, server, organizationId, ids, report)
+            PullDeletions(local, server, organizationId, ids, horizon, report)
         End Sub
 
-        Private Sub PullType(Of T As {EntityBase, New})(local As GmsDbContext, server As GmsDbContext,
-                                                        organizationId As Integer, ids As IdMap, report As SyncReport)
-            Dim name = GetType(T).Name
-            Dim cursorKey = $"pull:{organizationId}:{name}"
-            Dim stored = ReadCursor(local, cursorKey)
-            Dim after = stored - PullOverlap
-            Dim highest = stored
+        ''' <summary>The oldest transaction still running on the server; every older one has finished.</summary>
+        Private Shared Function TransactionHorizon(server As GmsDbContext) As Long
+            server.Database.OpenConnection()
+            Try
+                Using command = server.Database.GetDbConnection().CreateCommand()
+                    command.CommandText = "select pg_snapshot_xmin(pg_current_snapshot())::text::bigint"
+                    Return Convert.ToInt64(command.ExecuteScalar(), Globalization.CultureInfo.InvariantCulture)
+                End Using
+            Finally
+                server.Database.CloseConnection()
+            End Try
+        End Function
 
+        Private Sub PullType(Of T As {EntityBase, New})(local As GmsDbContext, server As GmsDbContext,
+                                                        organizationId As Integer, ids As IdMap,
+                                                        horizon As Long, report As SyncReport)
+            Dim name = GetType(T).Name
+            Dim cursorKey = $"pull-xid:{organizationId}:{name}"
+            ' The newest version applied so far, so a row read again is not counted as received.
+            Dim seenKey = $"pull-seen:{organizationId}:{name}"
+            Dim stored = ReadCursor(local, cursorKey)
+            Dim seen = ReadCursor(local, seenKey)
+            Dim newestSeen = seen
+
+            ' Keyset paging on (xid, version); the first page starts at the cursor itself.
+            Dim lastXid = stored
+            Dim lastVersion = -1L
             Do
-                Dim from = after
+                ' Plain locals of the loop body: a captured parameter here would get an EF
+                ' parameter named after VB's closure field ("$VB$Local_..."), which PostgreSQL rejects.
+                Dim afterXid = lastXid
+                Dim afterVersion = lastVersion
                 Dim page = ServerRows(Of T)(server, organizationId).
-                    Where(Function(e) EF.Property(Of Long)(e, GmsDbContext.SyncVersionProperty) > from).
-                    OrderBy(Function(e) EF.Property(Of Long)(e, GmsDbContext.SyncVersionProperty)).
+                    Where(Function(e) EF.Property(Of Long)(e, GmsDbContext.SyncXidProperty) > afterXid OrElse
+                                      (EF.Property(Of Long)(e, GmsDbContext.SyncXidProperty) = afterXid AndAlso
+                                       EF.Property(Of Long)(e, GmsDbContext.SyncVersionProperty) > afterVersion)).
+                    OrderBy(Function(e) EF.Property(Of Long)(e, GmsDbContext.SyncXidProperty)).
+                    ThenBy(Function(e) EF.Property(Of Long)(e, GmsDbContext.SyncVersionProperty)).
                     Select(Function(e) New PulledRow(Of T) With {
-                        .Row = e, .Version = EF.Property(Of Long)(e, GmsDbContext.SyncVersionProperty)}).
+                        .Row = e,
+                        .Xid = EF.Property(Of Long)(e, GmsDbContext.SyncXidProperty),
+                        .Version = EF.Property(Of Long)(e, GmsDbContext.SyncVersionProperty)}).
                     Take(PageSize).ToList()
                 If page.Count = 0 Then Exit Do
 
                 ApplyPulled(local, page.Select(Function(p) p.Row).ToList(), ids)
-                report.Received += page.Where(Function(p) p.Version > stored).Count()
-                after = page.Last().Version
-                highest = Math.Max(highest, after)
+                report.Received += page.Where(Function(p) p.Version > seen).Count()
+                newestSeen = Math.Max(newestSeen, page.Max(Function(p) p.Version))
+                lastXid = page.Last().Xid
+                lastVersion = page.Last().Version
                 If page.Count < PageSize Then Exit Do
             Loop
 
-            If highest <> stored Then LocalSyncState.Write(local, cursorKey, highest.ToString(Globalization.CultureInfo.InvariantCulture))
+            If horizon > stored Then LocalSyncState.Write(local, cursorKey, horizon.ToString(Globalization.CultureInfo.InvariantCulture))
+            If newestSeen > seen Then LocalSyncState.Write(local, seenKey, newestSeen.ToString(Globalization.CultureInfo.InvariantCulture))
         End Sub
 
         ''' <summary>
@@ -722,11 +757,13 @@ Namespace Sync
             End Using
         End Sub
 
+        ''' <remarks>Paged by transaction up to <paramref name="horizon"/>, as in <see cref="Pull"/>.</remarks>
         Private Sub PullDeletions(local As GmsDbContext, server As GmsDbContext, organizationId As Integer,
-                                  ids As IdMap, report As SyncReport)
-            Dim cursorKey = $"pull:{organizationId}:deletions"
+                                  ids As IdMap, horizon As Long, report As SyncReport)
+            Dim cursorKey = $"pull-xid:{organizationId}:deletions"
             Dim stored = ReadCursor(local, cursorKey)
-            Dim highest = stored
+            Dim lastXid = stored
+            Dim lastVersion = -1L
             Dim byTable = local.Model.GetEntityTypes().
                 Where(Function(e) GetType(EntityBase).IsAssignableFrom(e.ClrType) AndAlso e.GetTableName() IsNot Nothing).
                 ToDictionary(Function(e) e.GetTableName(), Function(e) e.ClrType, StringComparer.Ordinal)
@@ -735,17 +772,19 @@ Namespace Sync
             server.Database.OpenConnection()
             Try
                 Do
-                    Dim page As New List(Of (Table As String, SyncId As Guid, Version As Long))()
+                    Dim page As New List(Of (Table As String, SyncId As Guid, Xid As Long, Version As Long))()
                     Using command = connection.CreateCommand()
                         command.CommandText =
-                            "select table_name, sync_id, sync_version from sync_tombstones " &
-                            "where (organization_id = @org or organization_id is null) and sync_version > @after " &
-                            "order by sync_version limit " & PageSize.ToString(Globalization.CultureInfo.InvariantCulture)
+                            "select table_name, sync_id, sync_xid, sync_version from sync_tombstones " &
+                            "where (organization_id = @org or organization_id is null) " &
+                            "and (sync_xid > @xid or (sync_xid = @xid and sync_version > @version)) " &
+                            "order by sync_xid, sync_version limit " & PageSize.ToString(Globalization.CultureInfo.InvariantCulture)
                         command.Parameters.Add(New NpgsqlParameter("org", organizationId))
-                        command.Parameters.Add(New NpgsqlParameter("after", highest - If(highest = stored, PullOverlap, 0L)))
+                        command.Parameters.Add(New NpgsqlParameter("xid", lastXid))
+                        command.Parameters.Add(New NpgsqlParameter("version", lastVersion))
                         Using reader = command.ExecuteReader()
                             While reader.Read()
-                                page.Add((reader.GetString(0), reader.GetGuid(1), reader.GetInt64(2)))
+                                page.Add((reader.GetString(0), reader.GetGuid(1), reader.GetInt64(2), reader.GetInt64(3)))
                             End While
                         End Using
                     End Using
@@ -757,14 +796,15 @@ Namespace Sync
                         InvokeGeneric(NameOf(DeleteLocal), type, local, ids,
                                       group.Select(Function(g) g.SyncId).ToList(), report)
                     Next
-                    highest = Math.Max(highest, page.Last().Version)
+                    lastXid = page.Last().Xid
+                    lastVersion = page.Last().Version
                     If page.Count < PageSize Then Exit Do
                 Loop
             Finally
                 server.Database.CloseConnection()
             End Try
 
-            If highest <> stored Then LocalSyncState.Write(local, cursorKey, highest.ToString(Globalization.CultureInfo.InvariantCulture))
+            If horizon > stored Then LocalSyncState.Write(local, cursorKey, horizon.ToString(Globalization.CultureInfo.InvariantCulture))
         End Sub
 
         ''' <summary>

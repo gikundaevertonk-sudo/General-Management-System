@@ -284,8 +284,9 @@ store instead of the in-memory one.
 
 - The local copy on each desktop is not encrypted: it holds the organization's data, including
   users' password hashes, readable by anyone who can read that Windows profile.
-- A pull re-reads a margin of recent changes to catch slow transactions; one that stays open
-  longer than ~100 other writes can still be missed until that row changes again.
+- A pull's starting point only moves up to the oldest transaction still open on the server, so a
+  slow transaction is never missed. The flip side: while a session sits idle in a transaction on
+  the server, each pull re-reads everything written since it began (harmless, just more traffic).
 
 - No UI to create custom roles or edit a role's permission set — `RoleService.Create`/
   `SetPermissions` exist and both UIs show roles read-only (name, description, permission

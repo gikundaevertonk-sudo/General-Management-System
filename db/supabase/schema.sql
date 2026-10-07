@@ -491,9 +491,9 @@ create index if not exists ix_notifications_dedupe          on notifications (de
 
 -- ============================================================================
 -- Offline sync for the desktop client (same as migrations/2026-09-30-offline-sync.sql).
--- sync_id names a row across the server and every desktop copy; sync_version is
--- stamped on each insert/update so a desktop can fetch what changed since it last
--- looked; sync_tombstones records deletions for the same purpose.
+-- sync_id names a row across the server and every desktop copy; sync_version and
+-- sync_xid are stamped on each insert/update so a desktop can fetch what changed
+-- since it last looked; sync_tombstones records deletions for the same purpose.
 -- ============================================================================
 create sequence if not exists gms_sync_version_seq;
 
@@ -505,18 +505,27 @@ create table if not exists sync_tombstones (
     -- NULL for global tables (roles, permissions), which every desktop receives.
     organization_id integer,
     sync_version bigint not null default nextval('gms_sync_version_seq'),
+    -- The deleting transaction; see gms_stamp_sync_version.
+    sync_xid bigint not null default (pg_current_xact_id()::text::bigint),
     deleted_at_utc timestamp with time zone not null default now()
 );
-create index if not exists ix_sync_tombstones_org_version on sync_tombstones (organization_id, sync_version);
+alter table sync_tombstones add column if not exists sync_xid bigint not null default (pg_current_xact_id()::text::bigint);
+create index if not exists ix_sync_tombstones_xid on sync_tombstones (sync_xid, sync_version);
 
 -- Not for the Supabase data API. The application connects as the table owner,
 -- which row level security does not restrict.
 alter table sync_tombstones enable row level security;
 
+-- sync_version orders changes; sync_xid is the writing transaction, and is what a desktop
+-- pages by. A version is taken when the row is written but only becomes visible when its
+-- transaction commits, so paging by version alone can step past a row whose transaction
+-- is still open - and never come back for it. A desktop instead reads only transactions
+-- older than the oldest one still running (pg_snapshot_xmin), all of which are finished.
 create or replace function gms_stamp_sync_version() returns trigger
 language plpgsql as $$
 begin
     new.sync_version := nextval('gms_sync_version_seq');
+    new.sync_xid := pg_current_xact_id()::text::bigint;
     return new;
 end
 $$;
@@ -555,8 +564,9 @@ begin
     ] loop
         execute format('alter table %I add column if not exists sync_id uuid not null default gen_random_uuid()', t);
         execute format('alter table %I add column if not exists sync_version bigint not null default 0', t);
+        execute format('alter table %I add column if not exists sync_xid bigint not null default 0', t);
         execute format('create unique index if not exists %I on %I (sync_id)', 'ux_' || t || '_sync_id', t);
-        execute format('create index if not exists %I on %I (sync_version)', 'ix_' || t || '_sync_version', t);
+        execute format('create index if not exists %I on %I (sync_xid, sync_version)', 'ix_' || t || '_sync_xid', t);
 
         execute format('drop trigger if exists gms_sync_version on %I', t);
         execute format('create trigger gms_sync_version before insert or update on %I '
