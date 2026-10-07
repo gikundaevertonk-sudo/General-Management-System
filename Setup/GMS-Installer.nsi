@@ -4,9 +4,9 @@
 !include "MUI2.nsh"
 
 ; Version Information
-!define VERSION "1.0.5.0"
+!define VERSION "1.0.6.0"
 !define PRODUCT_NAME "General Management System"
-!define PRODUCT_VERSION "1.0.5"
+!define PRODUCT_VERSION "1.0.6"
 
 ; Basic Settings
 Name "${PRODUCT_NAME}"

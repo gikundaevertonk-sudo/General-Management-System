@@ -6,10 +6,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>GMS.Web</RootNamespace>
     <UserSecretsId>04c4188b-7ea6-48e9-a4b7-0a65afd69862</UserSecretsId>
-    <Version>1.0.5.0</Version>
-    <InformationalVersion>1.0.5</InformationalVersion>
-    <AssemblyVersion>1.0.5.0</AssemblyVersion>
-    <FileVersion>1.0.5.0</FileVersion>
+    <Version>1.0.6.0</Version>
+    <InformationalVersion>1.0.6</InformationalVersion>
+    <AssemblyVersion>1.0.6.0</AssemblyVersion>
+    <FileVersion>1.0.6.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
