@@ -31,12 +31,24 @@ Namespace Forms
             DesktopTheme.Attach(Me)
             Icon = UiKit.AppIcon
             grdLines.AutoGenerateColumns = False
+            ' Without a format each decimal shows its stored scale ("3.5", "35.0", "24"), which
+            ' disagrees with the inputs above and the totals below.
+            FormatNumberColumn(colQuantity, "N3")
+            FormatNumberColumn(colUnitPrice, "N2")
+            FormatNumberColumn(colTaxRate, "N2")
+            FormatNumberColumn(colLineTotal, "N2")
             _txnId = transactionId
 
             LoadProducts()
             LoadShops()
             If transactionId.HasValue Then LoadExisting(transactionId.Value)
             UpdateEnabled()
+        End Sub
+
+        Private Shared Sub FormatNumberColumn(col As DataGridViewColumn, format As String)
+            col.DefaultCellStyle.Format = format
+            col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight
+            col.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleRight
         End Sub
 
         ''' <summary>

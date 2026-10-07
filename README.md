@@ -293,9 +293,6 @@ store instead of the in-memory one.
   add a permission-checkbox editor if a custom role is ever needed.
 - A user belongs to **one** shop or to all of them; there is no "these three branches". A regional
   manager is modelled as unpinned (whole organisation) today.
-- Low-stock notifications are raised against the organisation's total, not per shop. A branch
-  running out while another is overstocked shows on the Shops screen (its *Low* count) but does
-  not raise an alert.
 - Audit rows record who changed what, not where, so a shop attendant's dashboard shows no recent
   activity at all rather than the whole organisation's.
 - Report export is CSV only (`ReportService.ToCsv`); PDF/Excel rendering is a front-end concern.

@@ -85,7 +85,8 @@ Namespace Services
             Dim held = QuantitiesAt(shopId)
             Dim products = Uow.Repository(Of Product)().Query().
                 Where(Function(p) ids.Contains(p.Id) AndAlso p.IsActive).ToList().
-                Where(Function(p) held.GetValueOrDefault(p.Id, 0D) <= p.ReorderLevel).ToList()
+                Where(Function(p) CarriesAt(held, p.Id, shopId) AndAlso
+                                  held.GetValueOrDefault(p.Id, 0D) <= p.ReorderLevel).ToList()
             If products.Count = 0 Then Return
 
             Dim watchers = StockWatchers()
@@ -117,6 +118,7 @@ Namespace Services
             For Each location In locations
                 Dim held = QuantitiesAt(location)
                 For Each p In products
+                    If Not CarriesAt(held, p.Id, location) Then Continue For
                     Dim quantity = held.GetValueOrDefault(p.Id, 0D)
                     If quantity > p.ReorderLevel Then Continue For
                     stillLow.Add(DedupeKeyFor(p.Id, location))
@@ -137,6 +139,17 @@ Namespace Services
 
             Uow.SaveChanges()
             Return Result(Of Integer).Ok(raised)
+        End Function
+
+        ''' <summary>
+        ''' Whether a location stocks the product at all. Central carries everything; a shop
+        ''' carries what has ever been sent to it (a ShopStock row, which stays at zero after it
+        ''' sells out). Without this, every branch raised a Critical alert for each product it
+        ''' was never meant to sell.
+        ''' </summary>
+        Private Shared Function CarriesAt(held As Dictionary(Of Integer, Decimal), productId As Integer,
+                                          shopId As Integer?) As Boolean
+            Return Not shopId.HasValue OrElse held.ContainsKey(productId)
         End Function
 
         ''' <summary>How much of each product one location is holding.</summary>

@@ -510,4 +510,27 @@ public class ShopTests
         Assert.True(signedIn.Value.HasPermission("transactions.confirm"));
         Assert.False(signedIn.Value.HasPermission("shops.allocate"));
     }
+
+    [Fact]
+    public void A_branch_is_alerted_only_for_products_it_stocks()
+    {
+        // A branch that was sent a product and is now short must be alerted; a branch that was
+        // never sent one does not carry it, and a Critical alert for it is noise nobody can act on.
+        using var host = new TestHost().WithBaseline();
+        host.NewTenant();
+        var west = GivenAShop(host, "Westlands", "WL");
+        var water = GivenAProduct(host, "WATER-500");
+        var juice = GivenAProduct(host, "JUICE-1L");
+        GivenCentralStock(host, water, 100m);
+        GivenCentralStock(host, juice, 100m);
+        Assert.True(host.Get<InventoryService>().Allocate(water, null, west, 4m, "").Succeeded);
+
+        var scan = host.Get<NotificationService>().RunLowStockScan();
+
+        Assert.True(scan.Succeeded, scan.ErrorMessage);
+        var keys = host.Get<GMS.Core.Abstractions.IUnitOfWork>().Repository<GMS.Core.Models.Notification>()
+            .Query().Select(n => n.DedupeKey).ToList();
+        Assert.Contains(keys, k => k.StartsWith($"lowstock:{west}:{water}:"));
+        Assert.DoesNotContain(keys, k => k.StartsWith($"lowstock:{west}:{juice}:"));
+    }
 }

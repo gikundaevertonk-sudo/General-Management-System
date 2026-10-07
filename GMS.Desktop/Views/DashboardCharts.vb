@@ -267,30 +267,39 @@ Namespace Views
             End If
 
             Dim maxRev = _top.Max(Function(p) p.Revenue)
-            Dim rowH = Math.Min(44.0F, (Height - 66.0F) / _top.Count)
             Dim left = 16.0F, w = Width - 32.0F
             Using nameF As New Font("Segoe UI", 9.0F), valF As New Font("Segoe UI Semibold", 9.0F),
                   noteF As New Font("Segoe UI", 8.0F), ink As New SolidBrush(ChartStyle.Ink),
                   mut As New SolidBrush(ChartStyle.Muted), track As New SolidBrush(ChartStyle.Track),
                   fill As New SolidBrush(ChartStyle.Series)
+                ' Row height comes from the fonts as drawn, not fixed pixels: at 125-150% display
+                ' scaling the text grows while fixed offsets do not, and each "N sold" note was
+                ' painted over the next product's name. Rows that do not fit are left out
+                ' rather than squeezed.
+                Dim nameH = Math.Max(nameF.GetHeight(g), valF.GetHeight(g))
+                Dim noteH = noteF.GetHeight(g)
+                Const barH As Single = 7.0F
+                Dim rowH = nameH + 2.0F + barH + 2.0F + noteH + 6.0F
+                Dim fits = Math.Max(1, CInt(Math.Floor((Height - 62.0F - 4.0F) / rowH)))
+                Dim shown = Math.Min(_top.Count, fits)
                 Dim trim As New StringFormat With {.Trimming = StringTrimming.EllipsisCharacter, .FormatFlags = StringFormatFlags.NoWrap}
                 Dim far As New StringFormat With {.Alignment = StringAlignment.Far}
-                For i = 0 To _top.Count - 1
+                For i = 0 To shown - 1
                     Dim p = _top(i)
                     Dim y = 62.0F + i * rowH
                     Dim valueText = p.Revenue.ToString("N2")
                     Dim valueW = g.MeasureString(valueText, valF).Width
-                    g.DrawString(p.ProductName, nameF, ink, New RectangleF(left, y, w - valueW - 8, 18), trim)
-                    g.DrawString(valueText, valF, ink, New RectangleF(left, y, w, 18), far)
-                    Dim barY = y + 20
-                    Using tp = RoundedBar(left, barY, w, 7)
+                    g.DrawString(p.ProductName, nameF, ink, New RectangleF(left, y, w - valueW - 8, nameH), trim)
+                    g.DrawString(valueText, valF, ink, New RectangleF(left, y, w, nameH), far)
+                    Dim barY = y + nameH + 2.0F
+                    Using tp = RoundedBar(left, barY, w, barH)
                         g.FillPath(track, tp)
                     End Using
                     Dim fw = Math.Max(6.0F, CSng(p.Revenue / maxRev) * w)
-                    Using fp = RoundedBar(left, barY, fw, 7)
+                    Using fp = RoundedBar(left, barY, fw, barH)
                         g.FillPath(fill, fp)
                     End Using
-                    g.DrawString($"{p.QuantitySold:0.##} sold", noteF, mut, left, barY + 8)
+                    g.DrawString($"{p.QuantitySold:0.##} sold", noteF, mut, left, barY + barH + 2.0F)
                 Next
             End Using
         End Sub
